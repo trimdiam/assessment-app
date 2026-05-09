@@ -6,6 +6,8 @@
   --muted: #627083;
   --accent: #226b63;
   --accent-2: #be7c2f;
+  --danger: #9f1d1d;
+  --success: #1d7a3e;
 }
 
 * { box-sizing: border-box; }
@@ -16,7 +18,8 @@ body {
   color: var(--text);
   font-family: Arial, Helvetica, sans-serif;
 }
-button, select { font: inherit; }
+button, select, input { font: inherit; }
+
 .app-shell {
   width: min(100%, 820px);
   margin: 0 auto;
@@ -33,6 +36,7 @@ h1 {
   font-size: 2rem;
   line-height: 1.05;
 }
+
 .panel {
   background: var(--panel);
   border: 1px solid var(--line);
@@ -50,7 +54,7 @@ h1 {
   color: var(--muted);
   font-weight: 700;
 }
-select {
+select, .text-input {
   width: 100%;
   min-height: 46px;
   border: 1px solid var(--line);
@@ -59,27 +63,197 @@ select {
   background: #fff;
   color: var(--text);
 }
-.summary-strip {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-  margin-bottom: 12px;
+.text-input:focus, select:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
 }
-.summary-strip div {
+
+.btn {
+  min-height: 46px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0 16px;
+  font-weight: 700;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.btn-secondary {
+  background: #fff;
+  color: var(--text);
+}
+.action-area {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.draft-section {
+  margin-top: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+.draft-heading {
+  margin: 0 0 8px;
+  font-size: 0.95rem;
+  color: var(--muted);
+}
+.draft-list {
+  display: grid;
+  gap: 6px;
+}
+.draft-item {
+  display: grid;
+  gap: 2px;
+  text-align: left;
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.draft-item:hover, .draft-item:focus {
+  border-color: var(--accent);
+  outline: none;
+}
+.draft-info {
+  font-weight: 700;
+  color: var(--text);
+}
+.draft-teacher {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.info-state {
+  margin: 8px 0 0;
+  padding: 10px 12px;
+  background: #e6f4ea;
+  border: 1px solid #b7e1c4;
+  border-radius: 8px;
+  color: var(--success);
+  text-align: center;
+}
+.error-state {
+  margin: 8px 0 0;
+  padding: 10px 12px;
+  background: #fce8e8;
+  border: 1px solid #eeb0b0;
+  border-radius: 8px;
+  color: var(--danger);
+  text-align: center;
+}
+.empty-state {
+  margin: 0;
+  padding: 12px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.session-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 8px;
-  padding: 10px;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+  display: grid;
+  gap: 10px;
 }
-.summary-strip strong {
-  display: block;
-  font-size: 1.35rem;
-  color: var(--accent);
+.session-title {
+  font-weight: 700;
+  font-size: 1.05rem;
 }
-.summary-strip span {
+.session-meta {
+  font-size: 0.85rem;
   color: var(--muted);
-  font-size: 0.8rem;
 }
+.toolbar-progress {
+  display: grid;
+  gap: 4px;
+}
+.progress-text {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+.progress-bar {
+  height: 8px;
+  background: var(--line);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+.toolbar-actions {
+  display: flex;
+  gap: 8px;
+}
+.saved-note {
+  font-size: 0.8rem;
+  color: var(--muted);
+  text-align: right;
+}
+
+.assessment-cards {
+  display: grid;
+  gap: 12px;
+}
+.assessment-card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 14px;
+}
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+.student-name {
+  font-weight: 700;
+  font-size: 1.05rem;
+  word-break: break-word;
+}
+.student-meta {
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin-top: 2px;
+}
+.total-block {
+  text-align: right;
+  flex-shrink: 0;
+  margin-left: 12px;
+}
+.total-score {
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: var(--muted);
+}
+.total-score.partial {
+  color: var(--accent-2);
+}
+.total-score.complete {
+  color: var(--success);
+}
+.card-criteria {
+  display: grid;
+  gap: 12px;
+}
+
 .criteria-list {
   display: grid;
   gap: 10px;
@@ -96,6 +270,7 @@ select {
 }
 .criterion-title {
   font-weight: 700;
+  font-size: 0.95rem;
 }
 .mark-scale {
   display: grid;
@@ -104,24 +279,26 @@ select {
 }
 .mark-button {
   min-width: 0;
-  min-height: 38px;
+  min-height: 44px;
   border: 1px solid #9fb0c3;
   border-radius: 8px;
   background: #f9fbfd;
   color: var(--text);
   font-weight: 700;
+  font-size: 1rem;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.mark-button:active {
+  background: #e8eef5;
+}
+.mark-button.selected {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
 }
 .mark-button:disabled { opacity: 1; }
-.empty-state,
-.error-state {
-  margin: 0;
-  padding: 12px;
-  color: var(--muted);
-  text-align: center;
-}
-.error-state {
-  color: #9f1d1d;
-}
 
 @media (min-width: 660px) {
   h1 { font-size: 2.45rem; }
@@ -134,5 +311,15 @@ select {
   .criterion-row {
     grid-template-columns: 1fr minmax(270px, 340px);
     align-items: center;
+  }
+  .session-toolbar {
+    grid-template-columns: 1fr auto auto;
+    align-items: center;
+  }
+  .toolbar-actions {
+    justify-content: flex-end;
+  }
+  .saved-note {
+    grid-column: 1 / -1;
   }
 }
