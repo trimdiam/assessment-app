@@ -1,3 +1,5 @@
+import { getClassAttendanceOverview } from './attendance-engine.js';
+
 const DEFAULT_RULES = Object.freeze({
   weak_overall: {
     enabled: true,
@@ -50,6 +52,18 @@ export function detectWeakStudents(aggregatedData, customRules = null) {
 
   const totalAssessments = aggregatedData.totalAssessments || 0;
 
+  // Load attendance data for this class
+  const classAttendance = aggregatedData.class
+    ? getClassAttendanceOverview(aggregatedData.class, aggregatedData.yearMonth || '')
+    : null;
+
+  const attendanceMap = new Map();
+  if (classAttendance?.studentList) {
+    classAttendance.studentList.forEach(a => {
+      attendanceMap.set(a.student_id, a);
+    });
+  }
+
   for (const student of aggregatedData.students) {
     const flags = [];
     const reasons = [];
@@ -84,6 +98,13 @@ export function detectWeakStudents(aggregatedData, customRules = null) {
         flags.push('missing_assessments');
         reasons.push(`${missing} incomplete assessment(s)`);
       }
+    }
+
+    // Real absence-based attendance risk from attendance engine
+    const att = attendanceMap.get(student.student_id);
+    if (att && att.absenceRate >= 15 && !flags.includes('attendance_risk')) {
+      flags.push('attendance_risk');
+      reasons.push(`Absence rate ${att.absenceRate}% (${att.totalAbsences} absent criteria)`);
     }
 
     if (flags.length > 0) {

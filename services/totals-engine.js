@@ -8,8 +8,11 @@ export function calculateStudentTotal(studentMarks, criteria) {
   const totalCriteria = criteria.length;
 
   criteria.forEach(criterion => {
-    const mark = studentMarks[criterion.criterion_id];
-    if (mark !== null && mark !== undefined) {
+    const entry = studentMarks[criterion.criterion_id];
+    const isAbsent = entry && typeof entry === 'object' && entry.attendance === 'absent';
+    const mark = isAbsent ? null : entry;
+
+    if (mark !== null && mark !== undefined && !isAbsent) {
       total += mark;
       completed++;
     }
@@ -19,6 +22,17 @@ export function calculateStudentTotal(studentMarks, criteria) {
   const percentage = max > 0 ? Math.round((total / max) * 100) : 0;
 
   return { total, max, percentage, completed, totalCriteria };
+}
+
+export function isCriterionAbsent(studentMarks, criterionId) {
+  const entry = studentMarks?.[criterionId];
+  return entry && typeof entry === 'object' && entry.attendance === 'absent';
+}
+
+export function getMarkValue(entry) {
+  if (entry === null || entry === undefined) return null;
+  if (typeof entry === 'object' && entry.attendance === 'absent') return null;
+  return entry;
 }
 
 export function calculateSessionProgress(marks, students, criteria) {

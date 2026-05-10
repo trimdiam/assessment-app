@@ -1,6 +1,7 @@
 import { createSessionSetup } from './components/session-setup.js';
 import { createAssessmentCard, updateTotal } from './components/assessment-card.js';
 import { createSessionToolbar } from './components/session-toolbar.js';
+import { createStickySaveToolbar } from './components/sticky-save-toolbar.js';
 import { createSessionList } from './components/session-list.js';
 import { createSessionReview } from './components/session-review.js';
 import { createMonthlySummary } from './components/monthly-summary.js';
@@ -14,6 +15,7 @@ import { getSubjectsForClass, loadSubjects } from './services/subject-loader.js'
 import { loadStudentsForClass } from './services/student-loader.js';
 import { createSession, validateMark } from './services/assessment-engine.js';
 import { initializeMarksWithDefault } from './services/fast-entry-engine.js';
+import { calculateSessionProgress } from './services/totals-engine.js';
 import { saveSession, getSession, getAllSessions } from './services/session-storage.js';
 import {
   updateSessionStatus,
@@ -61,7 +63,11 @@ const state = {
 
   useDefaultScore: false,
   quickEntryMode: false,
-  viewingStudentProfile: null
+  viewingStudentProfile: null,
+
+  expandedCards: {},
+  showRemainingOnly: false,
+  saveStatus: 'idle'
 };
 
 const setupRoot = document.querySelector('#session-setup-root');
@@ -246,6 +252,7 @@ function renderAssessment() {
 
   assessmentRoot.replaceChildren();
 
+  // Session toolbar (top, sticky)
   const toolbar = createSessionToolbar({
     session: state.session,
     marks: state.marks,
@@ -256,6 +263,40 @@ function renderAssessment() {
     lastSaved: state.lastSaved
   });
   assessmentRoot.append(toolbar);
+
+  // Filter bar
+  const filterBar = document.createElement('div');
+  filterBar.className = 'assessment-filter-bar';
+
+  const remainingToggle = document.createElement('button');
+  remainingToggle.type = 'button';
+  remainingToggle.className = `btn btn-sm ${state.showRemainingOnly ? 'btn-primary' : 'btn-secondary'}`;
+  remainingToggle.textContent = state.showRemainingOnly ? 'Show All' : 'Show Remaining Only';
+  remainingToggle.addEventListener('click', () => {
+    state.showRemainingOnly = !state.showRemainingOnly;
+    render();
+  });
+
+  const expandAllBtn = document.createElement('button');
+  expandAllBtn.type = 'button';
+  expandAllBtn.className = 'btn btn-sm btn-secondary';
+  expandAllBtn.textContent = 'Expand All';
+  expandAllBtn.addEventListener('click', () => {
+    state.students.forEach(s => { state.expandedCards[s.student_id] = true; });
+    render();
+  });
+
+  const collapseAllBtn = document.createElement('button');
+  collapseAllBtn.type = 'button';
+  collapseAllBtn.className = 'btn btn-sm btn-secondary';
+  collapseAllBtn.textContent = 'Collapse All';
+  collapseAllBtn.addEventListener('click', () => {
+    state.students.forEach(s => { state.expandedCards[s.student_id] = false; });
+    render();
+  });
+
+  filterBar.append(remainingToggle, expandAllBtn, collapseAllBtn);
+  assessmentRoot.append(filterBar);
 
   if (state.quickEntryMode) {
     assessmentRoot.append(createQuickEntryGrid({
@@ -268,18 +309,47 @@ function renderAssessment() {
     const cardsContainer = document.createElement('div');
     cardsContainer.className = 'assessment-cards';
 
-    state.students.forEach(student => {
+    let displayStudents = state.students;
+    if (state.showRemainingOnly) {
+      displayStudents = state.students.filter(student => {
+        const sm = state.marks[student.student_id] || {};
+        const allDone = state.criteria.every(c => {
+          const entry = sm[c.criterion_id];
+          return entry !== null && entry !== undefined;
+        });
+        return !allDone;
+      });
+    }
+
+    displayStudents.forEach(student => {
+      const expanded = state.expandedCards[student.student_id] !== false;
       const card = createAssessmentCard({
         student,
         criteria: state.criteria,
         marks: state.marks[student.student_id] || {},
-        onMarkChange: handleMarkChange
+        onMarkChange: handleMarkChange,
+        onToggleExpand: handleToggleExpand,
+        onApplyDefault: handleApplyDefaultToAll,
+        expanded,
+        onAbsentToggle: handleAbsentToggle
       });
       cardsContainer.append(card);
     });
 
     assessmentRoot.append(cardsContainer);
   }
+
+  // Sticky bottom save toolbar
+  const progress = calculateSessionProgress(state.marks, state.students, state.criteria);
+  const stickyToolbar = createStickySaveToolbar({
+    onSave: handleSave,
+    onSubmit: handleSubmitSession,
+    onClose: handleCloseSession,
+    saveStatus: state.saveStatus,
+    lastSaved: state.lastSaved,
+    progress
+  });
+  assessmentRoot.append(stickyToolbar);
 }
 
 function renderAdmin() {
@@ -363,6 +433,27 @@ function renderAdminAnalytics() {
     onMonthChange: month => {
       state.analyticsMonth = month;
       render();
+    },
+    onViewWeakStudents: () => {
+      state.adminView = 'weak';
+      state.weakClass = state.analyticsClass;
+      state.weakYearMonth = state.analyticsMonth;
+      render();
+    },
+    onViewSummary: () => {
+      state.adminView = 'summary';
+      state.summaryClass = state.analyticsClass;
+      state.summaryYearMonth = state.analyticsMonth;
+      render();
+    },
+    onViewSessions: () => {
+      state.adminView = 'sessions';
+      render();
+    },
+    onViewStudentProfile: studentId => {
+      state.viewingStudentProfile = studentId;
+      state.analyticsClass = state.analyticsClass;
+      render();
     }
   }));
 }
@@ -434,9 +525,37 @@ async function renderAdminSummary() {
   try {
     const data = await aggregateByMonth(state.summaryYearMonth, state.summaryClass);
     assessmentRoot.append(createMonthlySummary({
+      classes,
+      yearMonth: state.summaryYearMonth,
+      className: state.summaryClass,
       aggregatedData: data,
       onBack: () => {
         state.adminView = 'sessions';
+        render();
+      },
+      onViewStudentProfile: studentId => {
+        state.viewingStudentProfile = studentId;
+        state.analyticsClass = state.summaryClass;
+        render();
+      },
+      onViewWeakStudents: () => {
+        state.adminView = 'weak';
+        state.weakClass = state.summaryClass;
+        state.weakYearMonth = state.summaryYearMonth;
+        render();
+      },
+      onViewAnalytics: () => {
+        state.adminView = 'analytics';
+        state.analyticsClass = state.summaryClass;
+        state.analyticsMonth = state.summaryYearMonth;
+        render();
+      },
+      onClassChange: className => {
+        state.summaryClass = className;
+        render();
+      },
+      onYearMonthChange: ym => {
+        state.summaryYearMonth = ym;
         render();
       }
     }));
@@ -457,6 +576,11 @@ function renderAdminWeak() {
     },
     onYearMonthChange: ym => {
       state.weakYearMonth = ym;
+      render();
+    },
+    onViewProfile: studentId => {
+      state.viewingStudentProfile = studentId;
+      state.analyticsClass = state.weakClass;
       render();
     }
   }));
@@ -626,7 +750,64 @@ function handleMarkChange(studentId, criterionId, mark) {
     }
   }
 
+  state.saveStatus = 'unsaved';
   scheduleAutosave();
+}
+
+function handleToggleExpand(studentId) {
+  state.expandedCards[studentId] = !state.expandedCards[studentId];
+  render();
+}
+
+function handleApplyDefaultToAll(criterionId, defaultScore) {
+  state.students.forEach(student => {
+    const studentId = student.student_id;
+    if (!state.marks[studentId]) state.marks[studentId] = {};
+    const entry = state.marks[studentId][criterionId];
+    if (entry === null || entry === undefined) {
+      state.marks[studentId][criterionId] = defaultScore;
+    }
+  });
+  state.saveStatus = 'unsaved';
+  scheduleAutosave();
+  render();
+}
+
+function handleAbsentToggle(studentId, criterionId, isAbsent) {
+  if (!state.marks[studentId]) {
+    state.marks[studentId] = {};
+  }
+  if (isAbsent) {
+    state.marks[studentId][criterionId] = { attendance: 'absent' };
+  } else {
+    state.marks[studentId][criterionId] = null;
+  }
+
+  if (!state.quickEntryMode) {
+    const card = document.querySelector(`.assessment-card[data-student-id="${studentId}"]`);
+    if (card) {
+      updateTotal(card, state.marks[studentId], state.criteria);
+    }
+  }
+
+  state.saveStatus = 'unsaved';
+  scheduleAutosave();
+}
+
+function handleSubmitSession() {
+  if (!state.session) return;
+  const progress = calculateSessionProgress(state.marks, state.students, state.criteria);
+  if (progress.overallPercentage < 100) {
+    const ok = confirm(`Only ${progress.overallPercentage}% complete. Submit anyway?`);
+    if (!ok) return;
+  }
+  state.session.status = 'submitted';
+  handleSave();
+  alert('Session submitted successfully.');
+  state.mode = 'setup';
+  state.session = null;
+  state.marks = {};
+  render();
 }
 
 function handleSave() {

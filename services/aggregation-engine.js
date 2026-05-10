@@ -1,6 +1,6 @@
 import { getAllSessions } from './session-storage.js';
 import { loadStudentsForClass } from './student-loader.js';
-import { calculateStudentTotal } from './totals-engine.js';
+import { calculateStudentTotal, getMarkValue } from './totals-engine.js';
 
 const AGGREGATION_CACHE_KEY = 'sfds_aggregation_cache';
 
@@ -95,7 +95,16 @@ export async function aggregateByMonth(yearMonth, className, options = {}) {
     for (const [studentId, criterionMarks] of Object.entries(marks)) {
       subAgg.studentCount.add(studentId);
       subAgg.totalMax += maxPerSession;
-      const studentTotal = Object.values(criterionMarks).reduce((sum, m) => sum + (m || 0), 0);
+      let studentTotal = 0;
+      let absentCount = 0;
+      Object.values(criterionMarks).forEach(m => {
+        const val = getMarkValue(m);
+        if (val !== null) {
+          studentTotal += val;
+        } else if (m && typeof m === 'object' && m.attendance === 'absent') {
+          absentCount++;
+        }
+      });
       subAgg.totalMarks += studentTotal;
 
       const key = `${studentId}_${sess.subject_id}`;
@@ -106,13 +115,15 @@ export async function aggregateByMonth(yearMonth, className, options = {}) {
           subject_name: sess.subject_name,
           totalMarks: 0,
           totalMax: 0,
-          sessions: 0
+          sessions: 0,
+          totalAbsences: 0
         });
       }
       const sst = studentSubjectTotals.get(key);
       sst.totalMarks += studentTotal;
       sst.totalMax += maxPerSession;
       sst.sessions++;
+      sst.totalAbsences += absentCount;
     }
   }
 

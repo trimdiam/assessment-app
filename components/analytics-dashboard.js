@@ -1,7 +1,11 @@
 import { getSchoolOverview, getClassAnalytics, getStudentAnalytics, getSubjectAnalytics, getCompletionAnalytics } from '../services/analytics-engine.js';
-import { toLineChartData, toBarChartData, toDoughnutData, toHorizontalBarData } from '../services/graph-data-engine.js';
+import { aggregateByMonth, extractYearMonth } from '../services/aggregation-engine.js';
 import { detectWeakStudents } from '../services/weak-student-engine.js';
-import { aggregateByMonth } from '../services/aggregation-engine.js';
+import { toLineChartData, toBarChartData, toDoughnutData, toHorizontalBarData } from '../services/graph-data-engine.js';
+import { getMonthTrend, classifyPerformance, getClassComparison, getSubjectComparison, getCompletionTrend } from '../services/comparison-engine.js';
+import { getTopConcerns } from '../services/concern-engine.js';
+import { getSchoolHealthScore } from '../services/school-health-engine.js';
+import { getClassAttendanceOverview, getAttendanceRiskLevel } from '../services/attendance-engine.js';
 
 export function createAnalyticsDashboard({
   classes = [],
@@ -12,7 +16,11 @@ export function createAnalyticsDashboard({
   onViewChange = () => {},
   onClassChange = () => {},
   onStudentChange = () => {},
-  onMonthChange = () => {}
+  onMonthChange = () => {},
+  onViewWeakStudents = () => {},
+  onViewSummary = () => {},
+  onViewSessions = () => {},
+  onViewStudentProfile = () => {}
 } = {}) {
   const section = document.createElement('section');
   section.className = 'panel analytics-panel';
@@ -45,16 +53,7 @@ export function createAnalyticsDashboard({
   classSelect.addEventListener('change', e => onClassChange(e.target.value));
   filterBar.append(classSelect);
 
-  if (view === 'student') {
-    const monthInput = document.createElement('input');
-    monthInput.type = 'month';
-    monthInput.value = selectedMonth;
-    monthInput.className = 'text-input';
-    monthInput.addEventListener('change', e => onMonthChange(e.target.value));
-    filterBar.append(monthInput);
-  }
-
-  if (view === 'completion') {
+  if (view === 'student' || view === 'completion') {
     const monthInput = document.createElement('input');
     monthInput.type = 'month';
     monthInput.value = selectedMonth;
@@ -65,29 +64,47 @@ export function createAnalyticsDashboard({
 
   section.append(filterBar);
 
+  const contextBar = document.createElement('div');
+  contextBar.className = 'analytics-context';
+  contextBar.textContent = getContextText(view, selectedClass, selectedMonth);
+  section.append(contextBar);
+
   const content = document.createElement('div');
   content.className = 'analytics-content';
   section.append(content);
 
-  loadView(content, view, selectedClass, selectedStudent, selectedMonth, classes, onStudentChange);
+  loadView(content, view, selectedClass, selectedStudent, selectedMonth, classes, onStudentChange, onViewWeakStudents, onViewSummary, onViewSessions, onViewStudentProfile);
 
   return section;
 }
 
-async function loadView(container, view, className, studentId, month, classes, onStudentChange) {
-  container.replaceChildren(createLoading());
+function getContextText(view, className, month) {
+  const period = month ? formatMonth(month) : 'All Time';
+  const scope = className || 'All Classes';
+  return `${scope} • ${period}`;
+}
+
+function formatMonth(yearMonth) {
+  if (!yearMonth) return 'All Time';
+  const [y, m] = yearMonth.split('-');
+  const date = new Date(Number(y), Number(m) - 1);
+  return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+}
+
+async function loadView(container, view, className, studentId, month, classes, onStudentChange, onViewWeakStudents, onViewSummary, onViewSessions, onViewStudentProfile) {
+  container.replaceChildren(createSkeleton());
 
   try {
     if (view === 'overview') {
-      await renderOverview(container, className);
+      await renderOverview(container, className, month, onViewWeakStudents, onViewSummary, onViewSessions);
     } else if (view === 'student') {
-      await renderStudent(container, className, studentId, classes, onStudentChange);
+      await renderStudent(container, className, studentId, classes, onStudentChange, onViewStudentProfile);
     } else if (view === 'class') {
-      await renderClass(container, className);
+      await renderClass(container, className, month);
     } else if (view === 'subject') {
-      await renderSubject(container, className);
+      await renderSubject(container, className, month);
     } else if (view === 'completion') {
-      await renderCompletion(container, className, month);
+      await renderCompletion(container, className, month, onViewSessions);
     }
   } catch (error) {
     console.error(error);
@@ -95,18 +112,65 @@ async function loadView(container, view, className, studentId, month, classes, o
   }
 }
 
-async function renderOverview(container, className) {
-  const overview = await getSchoolOverview();
+async function renderOverview(container, className, month, onViewWeakStudents, onViewSummary, onViewSessions) {
+  const ym = month || extractYearMonth(new Date().toISOString());
+
+  const [overview, health, concerns] = await Promise.all([
+    getSchoolOverview(),
+    getSchoolHealthScore(ym, className),
+    getTopConcerns(className, ym)
+  ]);
+
+  container.replaceChildren();
+
+  container.append(createHealthScoreCard(health));
+
+  const quickActions = document.createElement('div');
+  quickActions.className = 'quick-actions';
+  const actions = [
+    { label: 'View Weak Students', onClick: onViewWeakStudents },
+    { label: 'Monthly Summary', onClick: onViewSummary },
+    { label: 'Review Sessions', onClick: onViewSessions }
+  ];
+  actions.forEach(a => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'btn btn-secondary btn-sm';
+    btn.textContent = a.label;
+    btn.addEventListener('click', a.onClick);
+    quickActions.append(btn);
+  });
+  container.append(quickActions);
 
   const grid = document.createElement('div');
   grid.className = 'stats-grid';
 
-  grid.append(createStatCard('Total Sessions', String(overview.totalSessions)));
-  grid.append(createStatCard('Completed', String(overview.completedSessions)));
-  grid.append(createStatCard('Classes', String(overview.totalClasses)));
-  grid.append(createStatCard('Students Assessed', String(overview.totalStudents)));
+  const completionTrend = await getCompletionTrend(className, ym);
+  const completion = getCompletionAnalytics(className || '', ym);
+
+  grid.append(createEnhancedStatCard('Total Sessions', String(overview.totalSessions), null, `${overview.completedSessions} completed`));
+  grid.append(createEnhancedStatCard('Completion Rate', `${completion.completionRate}%`, completionTrend, `${completion.counts.reviewed} reviewed • ${completion.counts.locked} locked`));
+  grid.append(createEnhancedStatCard('Classes', String(overview.totalClasses), null, `${overview.classData.length} with data`));
+  grid.append(createEnhancedStatCard('Students Assessed', String(overview.totalStudents), null, `${health.metrics.weakStudents} flagged`));
 
   container.append(grid);
+
+  if (concerns.length > 0) {
+    const concernPanel = document.createElement('div');
+    concernPanel.className = 'concern-panel';
+    const concernHeading = document.createElement('h3');
+    concernHeading.className = 'sub-heading';
+    concernHeading.textContent = 'Top Concerns';
+    concernPanel.append(concernHeading);
+
+    concerns.forEach(c => {
+      const item = document.createElement('div');
+      item.className = `concern-item concern-${c.level}`;
+      item.textContent = c.message;
+      concernPanel.append(item);
+    });
+    container.append(concernPanel);
+  }
 
   if (overview.classData.length > 0) {
     const chartWrap = document.createElement('div');
@@ -117,6 +181,7 @@ async function renderOverview(container, className) {
 
     const labels = overview.classData.map(c => c.class);
     const data = overview.classData.map(c => c.averagePercentage);
+    const avg = data.length > 0 ? Math.round(data.reduce((a, b) => a + b, 0) / data.length) : 0;
     const chartConfig = toBarChartData(labels, [{ label: 'Class Average %', data, color: '#226b63' }]);
     new Chart(canvas, chartConfig);
   }
@@ -124,17 +189,24 @@ async function renderOverview(container, className) {
   const list = document.createElement('div');
   list.className = 'summary-list';
   overview.classData.forEach(c => {
+    const perf = classifyPerformance(c.averagePercentage);
     const item = document.createElement('div');
     item.className = 'summary-item';
-    item.innerHTML = `<span>${c.class}</span><span>${c.averagePercentage}% avg • ${c.totalAssessments} assessments</span>`;
+    item.innerHTML = `
+      <span>${c.class}</span>
+      <span>
+        <span class="perf-label" style="color:${perf.color}">${perf.label}</span>
+        ${c.averagePercentage}% avg • ${c.totalAssessments} assessments
+      </span>
+    `;
     list.append(item);
   });
   container.append(list);
 }
 
-async function renderStudent(container, className, studentId, classes, onStudentChange) {
+async function renderStudent(container, className, studentId, classes, onStudentChange, onViewStudentProfile) {
   if (!className) {
-    container.append(createMessage('Select a class to view student analytics.'));
+    container.replaceChildren(createMessage('Select a class to view student analytics.'));
     return;
   }
 
@@ -142,7 +214,7 @@ async function renderStudent(container, className, studentId, classes, onStudent
   const students = agg.students;
 
   if (students.length === 0) {
-    container.append(createMessage('No student data available.'));
+    container.replaceChildren(createMessage('No student data available.'));
     return;
   }
 
@@ -153,9 +225,7 @@ async function renderStudent(container, className, studentId, classes, onStudent
   selector.addEventListener('change', e => onStudentChange(e.target.value));
   container.append(selector);
 
-  if (!studentId) {
-    return;
-  }
+  if (!studentId) return;
 
   const analytics = await getStudentAnalytics(studentId, className);
 
@@ -164,15 +234,27 @@ async function renderStudent(container, className, studentId, classes, onStudent
     return;
   }
 
+  const perf = classifyPerformance(analytics.averageOverall);
+
   const info = document.createElement('div');
   info.className = 'student-analytics-info';
   info.innerHTML = `
-    <div><strong>Average:</strong> ${analytics.averageOverall}%</div>
-    <div><strong>Months tracked:</strong> ${analytics.totalMonths}</div>
+    <div class="student-header-row">
+      <strong>${analytics.full_name || studentId}</strong>
+      <span class="perf-label ${perf.className}">${perf.label}</span>
+    </div>
+    <div>Average: ${analytics.averageOverall}% • Months tracked: ${analytics.totalMonths}</div>
     ${analytics.strongestSubject ? `<div><strong>Strongest:</strong> ${analytics.strongestSubject.subject_name} (${analytics.strongestSubject.averagePercentage}%)</div>` : ''}
     ${analytics.weakestSubject ? `<div><strong>Weakest:</strong> ${analytics.weakestSubject.subject_name} (${analytics.weakestSubject.averagePercentage}%)</div>` : ''}
   `;
   container.append(info);
+
+  const viewBtn = document.createElement('button');
+  viewBtn.type = 'button';
+  viewBtn.className = 'btn btn-primary btn-sm';
+  viewBtn.textContent = 'View Full Profile';
+  viewBtn.addEventListener('click', () => onViewStudentProfile(studentId));
+  container.append(viewBtn);
 
   if (analytics.monthlyData.length > 1) {
     const chartWrap = document.createElement('div');
@@ -183,6 +265,8 @@ async function renderStudent(container, className, studentId, classes, onStudent
 
     const labels = analytics.monthlyData.map(m => m.month);
     const data = analytics.monthlyData.map(m => m.overallPercentage);
+    const avg = data.length > 0 ? Math.round(data.reduce((a, b) => a + b, 0) / data.length) : 0;
+
     const chartConfig = toLineChartData(labels, [{ label: 'Overall %', data, color: '#226b63', fill: true }]);
     new Chart(canvas, chartConfig);
   }
@@ -198,26 +282,56 @@ async function renderStudent(container, className, studentId, classes, onStudent
     const data = analytics.subjectAverages.map(s => s.averagePercentage);
     const chartConfig = toBarChartData(labels, [{ label: 'Subject Average %', data }]);
     new Chart(canvas, chartConfig);
+
+    const subjList = document.createElement('div');
+    subjList.className = 'summary-list';
+    analytics.subjectAverages.forEach(s => {
+      const perf = classifyPerformance(s.averagePercentage);
+      const item = document.createElement('div');
+      item.className = 'summary-item';
+      item.innerHTML = `<span>${s.subject_name}</span><span><span class="perf-label" style="color:${perf.color}">${perf.label}</span> ${s.averagePercentage}%</span>`;
+      subjList.append(item);
+    });
+    container.append(subjList);
   }
 }
 
-async function renderClass(container, className) {
+async function renderClass(container, className, month) {
   if (!className) {
-    container.append(createMessage('Select a class to view analytics.'));
+    container.replaceChildren(createMessage('Select a class to view analytics.'));
     return;
   }
 
-  const analytics = await getClassAnalytics(className);
+  const ym = month || extractYearMonth(new Date().toISOString());
+
+  const [analytics, trend, comparison] = await Promise.all([
+    getClassAnalytics(className),
+    getMonthTrend(className, ym),
+    getClassComparison(['LKG', 'SKG', 'Class I', 'Class II'], ym)
+  ]);
 
   if (analytics.totalMonths === 0) {
-    container.append(createMessage('No data for this class.'));
+    container.replaceChildren(createMessage('No data for this class.'));
     return;
   }
+
+  const perf = classifyPerformance(analytics.monthlyData[analytics.monthlyData.length - 1]?.classAverage || 0);
 
   const info = document.createElement('div');
   info.className = 'summary-info';
-  info.innerHTML = `<div><strong>Months tracked:</strong> ${analytics.totalMonths}</div><div><strong>Students:</strong> ${analytics.students.length}</div>`;
+  info.innerHTML = `
+    <div class="student-header-row"><strong>${className}</strong><span class="perf-label ${perf.className}">${perf.label}</span></div>
+    <div>Months tracked: ${analytics.totalMonths} • Students: ${analytics.students.length}</div>
+    ${trend.label !== 'Stable' ? `<div class="trend-line">${trend.label}</div>` : ''}
+  `;
   container.append(info);
+
+  if (comparison.comparisons.length > 0 && comparison.best?.class === className) {
+    const compInfo = document.createElement('div');
+    compInfo.className = 'comparison-insight';
+    compInfo.textContent = `${className} is the top performing class this month`;
+    container.append(compInfo);
+  }
 
   if (analytics.monthlyData.length > 1) {
     const chartWrap = document.createElement('div');
@@ -262,20 +376,79 @@ async function renderClass(container, className) {
     const chartConfig = toHorizontalBarData(labels, [{ label: 'Average %', data }]);
     new Chart(canvas, chartConfig);
   }
+
+  // Attendance panel
+  const attendance = getClassAttendanceOverview(className, ym);
+  if (attendance.totalStudents > 0) {
+    const attHeading = document.createElement('h3');
+    attHeading.className = 'sub-heading';
+    attHeading.textContent = `Attendance Overview (${attendance.classAbsenceRate}% absent)`;
+    container.append(attHeading);
+
+    const attGrid = document.createElement('div');
+    attGrid.className = 'stats-grid';
+    attGrid.append(createEnhancedStatCard('Students', String(attendance.totalStudents), null, 'Tracked'));
+    attGrid.append(createEnhancedStatCard('Chronic', String(attendance.chronicAbsentees.length), null, '≥25% absent'));
+    attGrid.append(createEnhancedStatCard('High Risk', String(attendance.highRisk.length), null, '15–24% absent'));
+    attGrid.append(createEnhancedStatCard('Absences', String(attendance.classTotalAbsences), null, 'Total criteria'));
+    container.append(attGrid);
+
+    if (attendance.chronicAbsentees.length > 0 || attendance.highRisk.length > 0) {
+      const riskList = document.createElement('div');
+      riskList.className = 'summary-list';
+      const atRisk = [...attendance.chronicAbsentees, ...attendance.highRisk].slice(0, 10);
+      atRisk.forEach(a => {
+        const risk = getAttendanceRiskLevel(a.absenceRate);
+        const item = document.createElement('div');
+        item.className = 'summary-item';
+        item.innerHTML = `
+          <span>${a.student_id}</span>
+          <span>
+            <span class="perf-label" style="color:${risk.level === 'critical' ? '#9f1d1d' : risk.level === 'high' ? '#be5a00' : '#627083'}">${risk.label}</span>
+            ${a.absenceRate}% absent (${a.totalAbsences} criteria)
+          </span>
+        `;
+        riskList.append(item);
+      });
+      container.append(riskList);
+    }
+  }
 }
 
-async function renderSubject(container, className) {
+async function renderSubject(container, className, month) {
   if (!className) {
-    container.append(createMessage('Select a class to view subject analytics.'));
+    container.replaceChildren(createMessage('Select a class to view subject analytics.'));
     return;
   }
 
-  const subjects = await getSubjectAnalytics(className);
+  const ym = month || extractYearMonth(new Date().toISOString());
+
+  const [subjects, comparison] = await Promise.all([
+    getSubjectAnalytics(className),
+    getSubjectComparison(className, ym)
+  ]);
 
   if (subjects.length === 0) {
-    container.append(createMessage('No subject data available.'));
+    container.replaceChildren(createMessage('No subject data available.'));
     return;
   }
+
+  const intelPanel = document.createElement('div');
+  intelPanel.className = 'subject-intel-panel';
+
+  if (comparison.best) {
+    const bestTag = document.createElement('div');
+    bestTag.className = 'intel-tag intel-best';
+    bestTag.innerHTML = `<strong>Strongest:</strong> ${comparison.best.subject_name} (${comparison.best.averagePercentage}%)`;
+    intelPanel.append(bestTag);
+  }
+  if (comparison.worst) {
+    const worstTag = document.createElement('div');
+    worstTag.className = 'intel-tag intel-worst';
+    worstTag.innerHTML = `<strong>Weakest:</strong> ${comparison.worst.subject_name} (${comparison.worst.averagePercentage}%)`;
+    intelPanel.append(worstTag);
+  }
+  container.append(intelPanel);
 
   const chartWrap = document.createElement('div');
   chartWrap.className = 'chart-wrap';
@@ -285,29 +458,53 @@ async function renderSubject(container, className) {
 
   const labels = subjects.map(s => s.subject_name);
   const data = subjects.map(s => s.averagePercentage);
+  const avg = data.length > 0 ? Math.round(data.reduce((a, b) => a + b, 0) / data.length) : 0;
+
   const chartConfig = toBarChartData(labels, [{ label: 'Average %', data }]);
   new Chart(canvas, chartConfig);
 
   const list = document.createElement('div');
   list.className = 'summary-list';
   subjects.forEach(s => {
+    const perf = classifyPerformance(s.averagePercentage);
     const item = document.createElement('div');
     item.className = 'summary-item';
-    item.innerHTML = `<span>${s.subject_name}</span><span>${s.averagePercentage}% • ${s.sessions} session(s)</span>`;
+    item.innerHTML = `
+      <span>${s.subject_name}</span>
+      <span>
+        <span class="perf-label" style="color:${perf.color}">${perf.label}</span>
+        ${s.averagePercentage}% • ${s.sessions} session(s)
+      </span>
+    `;
     list.append(item);
   });
   container.append(list);
 }
 
-async function renderCompletion(container, className, month) {
-  const comp = getCompletionAnalytics(className || '', month || '');
+async function renderCompletion(container, className, month, onViewSessions) {
+  const ym = month || extractYearMonth(new Date().toISOString());
+  const comp = getCompletionAnalytics(className || '', ym);
+  const trend = await getCompletionTrend(className || '', ym);
+
+  const perf = classifyPerformance(comp.completionRate);
+
+  const info = document.createElement('div');
+  info.className = 'completion-header';
+  info.innerHTML = `
+    <div class="student-header-row">
+      <strong>Completion Health</strong>
+      <span class="perf-label ${perf.className}">${perf.label}</span>
+    </div>
+    <div class="trend-line">${trend.label}</div>
+  `;
+  container.append(info);
 
   const grid = document.createElement('div');
   grid.className = 'stats-grid';
-  grid.append(createStatCard('Total', String(comp.total)));
-  grid.append(createStatCard('Completion Rate', `${comp.completionRate}%`));
-  grid.append(createStatCard('Reviewed', String(comp.counts.reviewed)));
-  grid.append(createStatCard('Locked', String(comp.counts.locked)));
+  grid.append(createEnhancedStatCard('Total', String(comp.total), null, 'All sessions'));
+  grid.append(createEnhancedStatCard('Completion', `${comp.completionRate}%`, trend, `${comp.counts.reviewed + comp.counts.locked} done`));
+  grid.append(createEnhancedStatCard('Pending', String(comp.counts.draft + comp.counts.submitted), null, `${comp.counts.draft} draft • ${comp.counts.submitted} submitted`));
+  grid.append(createEnhancedStatCard('Locked', String(comp.counts.locked), null, 'Finalized'));
   container.append(grid);
 
   const chartWrap = document.createElement('div');
@@ -332,9 +529,16 @@ async function renderCompletion(container, className, month) {
     list.className = 'summary-list';
     comp.teachers.forEach(t => {
       const pct = t.total > 0 ? Math.round((t.completed / t.total) * 100) : 0;
+      const perf = classifyPerformance(pct);
       const item = document.createElement('div');
       item.className = 'summary-item';
-      item.innerHTML = `<span>${t.teacher}</span><span>${t.completed}/${t.total} (${pct}%)</span>`;
+      item.innerHTML = `
+        <span>${t.teacher}</span>
+        <span>
+          <span class="perf-label" style="color:${perf.color}">${perf.label}</span>
+          ${t.completed}/${t.total} (${pct}%)
+        </span>
+      `;
       list.append(item);
     });
     container.append(list);
@@ -350,31 +554,89 @@ async function renderCompletion(container, className, month) {
     list.className = 'summary-list';
     comp.subjects.forEach(s => {
       const pct = s.total > 0 ? Math.round((s.completed / s.total) * 100) : 0;
+      const perf = classifyPerformance(pct);
       const item = document.createElement('div');
       item.className = 'summary-item';
-      item.innerHTML = `<span>${s.subject_name}</span><span>${s.completed}/${s.total} (${pct}%)</span>`;
+      item.innerHTML = `
+        <span>${s.subject_name}</span>
+        <span>
+          <span class="perf-label" style="color:${perf.color}">${perf.label}</span>
+          ${s.completed}/${s.total} (${pct}%)
+        </span>
+      `;
       list.append(item);
     });
     container.append(list);
   }
+
+  const reviewBtn = document.createElement('button');
+  reviewBtn.type = 'button';
+  reviewBtn.className = 'btn btn-primary';
+  reviewBtn.textContent = 'Review Pending Sessions';
+  reviewBtn.addEventListener('click', onViewSessions);
+  container.append(reviewBtn);
 }
 
-function createStatCard(label, value) {
+function createHealthScoreCard(health) {
   const card = document.createElement('div');
-  card.className = 'stat-card';
+  card.className = 'health-score-card';
+  const hasAttendance = health.breakdown.attendance !== undefined;
+  card.innerHTML = `
+    <div class="health-score-main">
+      <div class="health-score-value ${health.statusClass}">${health.score}%</div>
+      <div class="health-score-label">School Health Score</div>
+      <div class="health-score-status ${health.statusClass}">${health.statusLabel}</div>
+    </div>
+    <div class="health-breakdown">
+      <div class="health-metric"><span>Academic</span><strong>${health.breakdown.academic}%</strong></div>
+      <div class="health-metric"><span>Completion</span><strong>${health.breakdown.completion}%</strong></div>
+      <div class="health-metric"><span>Student Health</span><strong>${health.breakdown.studentHealth}%</strong></div>
+      ${hasAttendance ? `<div class="health-metric"><span>Attendance</span><strong>${health.breakdown.attendance}%</strong></div>` : ''}
+    </div>
+  `;
+  return card;
+}
+
+function createEnhancedStatCard(label, value, trend, subtitle) {
+  const card = document.createElement('div');
+  card.className = 'stat-card enhanced-stat';
   const val = document.createElement('div');
   val.className = 'stat-value';
   val.textContent = value;
   const lab = document.createElement('div');
   lab.className = 'stat-label';
   lab.textContent = label;
-  card.append(val, lab);
+  const sub = document.createElement('div');
+  sub.className = 'stat-subtitle';
+  sub.textContent = subtitle || '';
+
+  card.append(val, lab, sub);
+
+  if (trend) {
+    const trendEl = document.createElement('div');
+    trendEl.className = `stat-trend trend-${trend.direction}`;
+    trendEl.textContent = trend.label;
+    card.append(trendEl);
+  }
+
   return card;
+}
+
+function createSkeleton() {
+  const wrap = document.createElement('div');
+  wrap.className = 'skeleton-wrap';
+  for (let i = 0; i < 4; i++) {
+    const block = document.createElement('div');
+    block.className = 'skeleton-block';
+    wrap.append(block);
+  }
+  return wrap;
 }
 
 function createSelect(placeholder) {
   const select = document.createElement('select');
   select.className = 'text-input';
+  select.append(createOption('', placeholder));
   return select;
 }
 
@@ -384,13 +646,6 @@ function createOption(value, text, selected = false) {
   option.textContent = text;
   option.selected = selected;
   return option;
-}
-
-function createLoading() {
-  const p = document.createElement('p');
-  p.className = 'empty-state';
-  p.textContent = 'Loading...';
-  return p;
 }
 
 function createMessage(text) {
