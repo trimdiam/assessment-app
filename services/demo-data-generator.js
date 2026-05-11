@@ -1,15 +1,32 @@
 const STORAGE_KEY = 'sfds_assessment_sessions';
-const DEMO_DATE = '2026-05-15';
 const TEACHER_NAME = 'Demo Teacher';
 
-const subjects = [
-  { subject_id: 'ENG1', subject_name: 'English I', criteria: ['ENG1_C1','ENG1_C2','ENG1_C3','ENG1_C4','ENG1_C5','ENG1_C6'] },
-  { subject_id: 'ENG2', subject_name: 'English II', criteria: ['ENG2_C1','ENG2_C2','ENG2_C3','ENG2_C4','ENG2_C5'] },
-  { subject_id: 'MATH', subject_name: 'Mathematics', criteria: ['MATH_C1','MATH_C2','MATH_C3','MATH_C4','MATH_C5'] },
-  { subject_id: 'SCI', subject_name: 'Science', criteria: ['SCI_C1','SCI_C2','SCI_C3','SCI_C4'] },
-  { subject_id: 'KHA', subject_name: 'Khasi', criteria: ['KHA_C1','KHA_C2','KHA_C3','KHA_C4','KHA_C5'] },
-  { subject_id: 'HIN', subject_name: 'Hindi', criteria: ['HIN_C1','HIN_C2','HIN_C3','HIN_C4','HIN_C5'] }
+// 3 months of data with different performance levels to show trends
+const MONTHS = [
+  { date: '2026-03-15', label: 'March',  performance: 'low'    },
+  { date: '2026-04-15', label: 'April',  performance: 'medium' },
+  { date: '2026-05-15', label: 'May',    performance: 'high'   }
 ];
+
+const subjects = [
+  { subject_id: 'ENG1', subject_name: 'English I',    criteria: ['ENG1_C1','ENG1_C2','ENG1_C3','ENG1_C4','ENG1_C5','ENG1_C6'] },
+  { subject_id: 'ENG2', subject_name: 'English II',   criteria: ['ENG2_C1','ENG2_C2','ENG2_C3','ENG2_C4','ENG2_C5'] },
+  { subject_id: 'MATH', subject_name: 'Mathematics',  criteria: ['MATH_C1','MATH_C2','MATH_C3','MATH_C4','MATH_C5'] },
+  { subject_id: 'SCI',  subject_name: 'Science',      criteria: ['SCI_C1','SCI_C2','SCI_C3','SCI_C4'] },
+  { subject_id: 'KHA',  subject_name: 'Khasi',        criteria: ['KHA_C1','KHA_C2','KHA_C3','KHA_C4','KHA_C5'] },
+  { subject_id: 'HIN',  subject_name: 'Hindi',        criteria: ['HIN_C1','HIN_C2','HIN_C3','HIN_C4','HIN_C5'] }
+];
+
+// Per-subject trend overrides — makes trends visible and meaningful
+// 'rising' = improves each month, 'falling' = worsens, 'stable' = consistent
+const SUBJECT_TRENDS = {
+  MATH: 'rising',   // Maths improves steadily
+  SCI:  'rising',   // Science also improving
+  ENG1: 'stable',   // English I stays consistent
+  ENG2: 'falling',  // English II declines slightly
+  KHA:  'stable',   // Khasi stable
+  HIN:  'rising'    // Hindi improving
+};
 
 const class1Students = [
   'SFS260101','SFS260102','SFS260103','SFS260104','SFS260105','SFS260106','SFS260107','SFS260108',
@@ -32,48 +49,67 @@ const class2Students = [
   'SFS260208','SFS260209','SFS260210','SFS260211','SFS260212','SFS260213','SFS260214'
 ];
 
-function getTier(studentIndex, total) {
-  const pct = studentIndex / total;
+// Student tiers — top 20% strong, middle 50% average, bottom 30% weak
+function getTier(idx, total) {
+  const pct = idx / total;
   if (pct < 0.2) return 'strong';
   if (pct < 0.7) return 'average';
   return 'weak';
 }
 
-function randomMark(tier) {
-  const r = Math.random();
-  if (tier === 'strong') {
-    if (r < 0.5) return 5;
-    if (r < 0.85) return 4;
-    return 3;
-  }
-  if (tier === 'average') {
-    if (r < 0.15) return 5;
-    if (r < 0.5) return 4;
-    if (r < 0.85) return 3;
-    return 2;
-  }
-  // weak
-  if (r < 0.1) return 4;
-  if (r < 0.4) return 3;
-  if (r < 0.75) return 2;
-  if (r < 0.95) return 1;
+// Bias shifts mark distribution up or down based on month & subject trend
+function getTrendBias(subjectId, monthIndex) {
+  const trend = SUBJECT_TRENDS[subjectId] || 'stable';
+  if (trend === 'rising')  return monthIndex;       //  0, +1, +2
+  if (trend === 'falling') return -monthIndex;      //  0, -1, -2
   return 0;
 }
 
-function generateMarks(students, criteria) {
+function randomMark(tier, bias = 0) {
+  const r = Math.random();
+  let mark;
+  if (tier === 'strong') {
+    if (r < 0.55) mark = 5;
+    else if (r < 0.88) mark = 4;
+    else mark = 3;
+  } else if (tier === 'average') {
+    if (r < 0.15) mark = 5;
+    else if (r < 0.50) mark = 4;
+    else if (r < 0.82) mark = 3;
+    else mark = 2;
+  } else {
+    // weak
+    if (r < 0.08) mark = 4;
+    else if (r < 0.35) mark = 3;
+    else if (r < 0.70) mark = 2;
+    else if (r < 0.92) mark = 1;
+    else mark = 0;
+  }
+  return Math.min(5, Math.max(0, mark + bias));
+}
+
+function generateMarks(students, criteria, subjectId, monthIndex) {
+  const bias = getTrendBias(subjectId, monthIndex);
   const marks = {};
   students.forEach((studentId, idx) => {
     const tier = getTier(idx, students.length);
     marks[studentId] = {};
-    criteria.forEach(criterionId => {
-      marks[studentId][criterionId] = randomMark(tier);
+    criteria.forEach((criterionId, ci) => {
+      // Bottom 10% of students get occasional absent marks
+      const isWeak = idx / students.length > 0.90;
+      const absentChance = isWeak && ci === 0 && monthIndex === 0 ? 0.25 : 0;
+      if (Math.random() < absentChance) {
+        marks[studentId][criterionId] = { attendance: 'absent' };
+      } else {
+        marks[studentId][criterionId] = randomMark(tier, bias);
+      }
     });
   });
   return marks;
 }
 
-function generateSession(className, students, subject, date) {
-  const sessionId = `demo_${className.replace(/\s+/g,'')}_${subject.subject_id}_${date}`;
+function generateSession(className, students, subject, date, monthIndex) {
+  const sessionId = `demo_${className.replace(/\s+/g, '')}_${subject.subject_id}_${date}`;
   return {
     session: {
       session_id: sessionId,
@@ -86,7 +122,7 @@ function generateSession(className, students, subject, date) {
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     },
-    marks: generateMarks(students, subject.criteria),
+    marks: generateMarks(students, subject.criteria, subject.subject_id, monthIndex),
     saved_at: new Date().toISOString()
   };
 }
@@ -101,9 +137,11 @@ export function generateDemoData() {
   const existing = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
   const sessions = [];
 
-  subjects.forEach(subject => {
-    sessions.push(generateSession('Class I', class1Students, subject, DEMO_DATE));
-    sessions.push(generateSession('Class II', class2Students, subject, DEMO_DATE));
+  MONTHS.forEach(({ date }, monthIndex) => {
+    subjects.forEach(subject => {
+      sessions.push(generateSession('Class I',  class1Students, subject, date, monthIndex));
+      sessions.push(generateSession('Class II', class2Students, subject, date, monthIndex));
+    });
   });
 
   const merged = [...existing];
