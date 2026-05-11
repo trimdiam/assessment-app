@@ -1,4 +1,4 @@
-import { getSchoolOverview, getClassAnalytics, getStudentAnalytics, getSubjectAnalytics, getCompletionAnalytics } from '../services/analytics-engine.js';
+import { getSchoolOverview, getClassAnalytics, getStudentAnalytics, getSubjectAnalytics, getCompletionAnalytics, getAvailableMonths } from '../services/analytics-engine.js';
 import { aggregateByMonth, extractYearMonth } from '../services/aggregation-engine.js';
 import { detectWeakStudents } from '../services/weak-student-engine.js';
 import { toLineChartData, toBarChartData, toDoughnutData, toHorizontalBarData } from '../services/graph-data-engine.js';
@@ -28,10 +28,11 @@ export function createAnalyticsDashboard({
   const tabs = document.createElement('div');
   tabs.className = 'analytics-tabs';
   const tabDefs = [
-    { key: 'overview', label: 'Overview' },
-    { key: 'student', label: 'Student' },
-    { key: 'class', label: 'Class' },
-    { key: 'subject', label: 'Subject' },
+    { key: 'overview',  label: 'Overview' },
+    { key: 'trends',    label: 'Trends' },
+    { key: 'student',   label: 'Student' },
+    { key: 'class',     label: 'Class' },
+    { key: 'subject',   label: 'Subject' },
     { key: 'completion', label: 'Completion' }
   ];
   tabDefs.forEach(t => {
@@ -97,6 +98,8 @@ async function loadView(container, view, className, studentId, month, classes, o
   try {
     if (view === 'overview') {
       await renderOverview(container, className, month, onViewWeakStudents, onViewSummary, onViewSessions);
+    } else if (view === 'trends') {
+      await renderTrends(container, className);
     } else if (view === 'student') {
       await renderStudent(container, className, studentId, classes, onStudentChange, onViewStudentProfile);
     } else if (view === 'class') {
@@ -575,6 +578,157 @@ async function renderCompletion(container, className, month, onViewSessions) {
   reviewBtn.textContent = 'Review Pending Sessions';
   reviewBtn.addEventListener('click', onViewSessions);
   container.append(reviewBtn);
+}
+
+async function renderTrends(container, className) {
+  if (!className) {
+    container.replaceChildren(createMessage('Select a class to view month-to-month trends.'));
+    return;
+  }
+
+  const months = getAvailableMonths(className);
+  if (months.length < 2) {
+    container.replaceChildren(createMessage('At least 2 months of data needed to show trends.'));
+    return;
+  }
+
+  container.replaceChildren();
+
+  // Fetch aggregated data for all available months in parallel
+  const aggResults = await Promise.all(months.map(ym => aggregateByMonth(ym, className)));
+
+  // ── Overall class trend chart ─────────────────────────────────────────────
+  const heading1 = document.createElement('h3');
+  heading1.className = 'sub-heading';
+  heading1.textContent = 'Class Average — Month by Month';
+  container.append(heading1);
+
+  const avgData = aggResults.map(a => a.classAverage);
+  const chartWrap1 = document.createElement('div');
+  chartWrap1.className = 'chart-wrap';
+  const canvas1 = document.createElement('canvas');
+  chartWrap1.append(canvas1);
+  container.append(chartWrap1);
+  new Chart(canvas1, toLineChartData(
+    months.map(formatMonth),
+    [{ label: 'Class Average %', data: avgData, color: '#226b63', fill: true }]
+  ));
+
+  // ── Month-over-month delta cards ──────────────────────────────────────────
+  const heading2 = document.createElement('h3');
+  heading2.className = 'sub-heading';
+  heading2.textContent = 'Month-over-Month Change';
+  container.append(heading2);
+
+  const deltaGrid = document.createElement('div');
+  deltaGrid.className = 'stats-grid';
+  for (let i = 1; i < months.length; i++) {
+    const prev = aggResults[i - 1].classAverage;
+    const curr = aggResults[i].classAverage;
+    const delta = curr - prev;
+    const direction = delta > 2 ? 'improving' : delta < -2 ? 'declining' : 'stable';
+    const arrow = delta > 0 ? `↑ +${delta}%` : delta < 0 ? `↓ ${delta}%` : '→ No change';
+    deltaGrid.append(createEnhancedStatCard(
+      `${formatMonth(months[i - 1])} → ${formatMonth(months[i])}`,
+      `${curr}%`,
+      { direction, label: arrow },
+      `Previous: ${prev}%`
+    ));
+  }
+  container.append(deltaGrid);
+
+  // ── Subject trends across months ──────────────────────────────────────────
+  const heading3 = document.createElement('h3');
+  heading3.className = 'sub-heading';
+  heading3.textContent = 'Subject Trends Across Months';
+  container.append(heading3);
+
+  // Build subject map: { subject_id → { name, monthlyData: [{ month, pct }] } }
+  const subjectMap = new Map();
+  aggResults.forEach((agg, i) => {
+    agg.subjects.forEach(sub => {
+      if (!subjectMap.has(sub.subject_id)) {
+        subjectMap.set(sub.subject_id, { subject_name: sub.subject_name, monthly: [] });
+      }
+      subjectMap.get(sub.subject_id).monthly[i] = sub.averagePercentage;
+    });
+  });
+  // Fill any gaps with null
+  subjectMap.forEach(sub => {
+    for (let i = 0; i < months.length; i++) {
+      if (sub.monthly[i] === undefined) sub.monthly[i] = null;
+    }
+  });
+
+  const chartWrap2 = document.createElement('div');
+  chartWrap2.className = 'chart-wrap';
+  const canvas2 = document.createElement('canvas');
+  chartWrap2.append(canvas2);
+  container.append(chartWrap2);
+  const datasets = Array.from(subjectMap.values()).map((sub, i) => ({
+    label: sub.subject_name,
+    data: sub.monthly,
+    color: getColor(i)
+  }));
+  new Chart(canvas2, toLineChartData(months.map(formatMonth), datasets));
+
+  // ── Subject comparison table ──────────────────────────────────────────────
+  const heading4 = document.createElement('h3');
+  heading4.className = 'sub-heading';
+  heading4.textContent = 'Subject Detail by Month';
+  container.append(heading4);
+
+  const table = document.createElement('table');
+  table.className = 'trends-table';
+  table.style.cssText = 'width:100%;border-collapse:collapse;font-size:0.875rem;';
+
+  const thead = document.createElement('thead');
+  const headerRow = document.createElement('tr');
+  ['Subject', ...months.map(formatMonth), 'Change'].forEach((h, i) => {
+    const th = document.createElement('th');
+    th.textContent = h;
+    th.style.cssText = `padding:8px 10px;text-align:${i === 0 ? 'left' : 'center'};border-bottom:2px solid var(--border);background:var(--surface);font-weight:600;`;
+    headerRow.append(th);
+  });
+  thead.append(headerRow);
+  table.append(thead);
+
+  const tbody = document.createElement('tbody');
+  subjectMap.forEach((sub, subjectId) => {
+    const row = document.createElement('tr');
+    const first = sub.monthly.find(v => v !== null) ?? 0;
+    const last = [...sub.monthly].reverse().find(v => v !== null) ?? 0;
+    const overallDelta = last - first;
+    const arrow = overallDelta > 2 ? '↑' : overallDelta < -2 ? '↓' : '→';
+    const color = overallDelta > 2 ? '#1d7a3e' : overallDelta < -2 ? '#9f1d1d' : '#627083';
+
+    const nameTd = document.createElement('td');
+    nameTd.textContent = sub.subject_name;
+    nameTd.style.cssText = 'padding:8px 10px;font-weight:500;border-bottom:1px solid var(--border);';
+    row.append(nameTd);
+
+    sub.monthly.forEach((pct, i) => {
+      const td = document.createElement('td');
+      td.textContent = pct !== null ? `${pct}%` : '—';
+      td.style.cssText = `padding:8px 10px;text-align:center;border-bottom:1px solid var(--border);`;
+      // Highlight change between consecutive months
+      if (i > 0 && pct !== null && sub.monthly[i - 1] !== null) {
+        const d = pct - sub.monthly[i - 1];
+        td.style.color = d > 2 ? '#1d7a3e' : d < -2 ? '#9f1d1d' : 'inherit';
+        td.style.fontWeight = Math.abs(d) > 2 ? '600' : 'normal';
+      }
+      row.append(td);
+    });
+
+    const deltaTd = document.createElement('td');
+    deltaTd.textContent = `${arrow} ${overallDelta > 0 ? '+' : ''}${overallDelta}%`;
+    deltaTd.style.cssText = `padding:8px 10px;text-align:center;border-bottom:1px solid var(--border);color:${color};font-weight:600;`;
+    row.append(deltaTd);
+
+    tbody.append(row);
+  });
+  table.append(tbody);
+  container.append(table);
 }
 
 function createHealthScoreCard(health) {
