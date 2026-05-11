@@ -1,4 +1,8 @@
+import { persistSession, fetchSessions, fetchSession } from './firestore-service.js';
+
 const STORAGE_KEY = 'sfds_assessment_sessions';
+
+// ── Local cache helpers ───────────────────────────────────────────────────────
 
 export function getAllSessions() {
   try {
@@ -11,13 +15,31 @@ export function getAllSessions() {
   }
 }
 
-export function saveSession(session, marks) {
-  if (!session || !session.session_id) {
-    throw new Error('Invalid session');
+function writeLocalCache(sessions) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(sessions));
+  } catch (err) {
+    throw new Error('Failed to save session: storage may be full');
   }
+}
 
-  const sessions = getAllSessions();
-  const existingIndex = sessions.findIndex(s => s.session.session_id === session.session_id);
+// ── Firestore sync ────────────────────────────────────────────────────────────
+
+// Called once on app init — pulls all sessions from Firestore into localStorage.
+export async function syncSessionsFromFirestore() {
+  try {
+    const remote = await fetchSessions();
+    if (remote.length === 0) return;
+    writeLocalCache(remote);
+  } catch (err) {
+    console.warn('Firestore sync failed, using local cache:', err.message);
+  }
+}
+
+// ── Write ─────────────────────────────────────────────────────────────────────
+
+export function saveSession(session, marks) {
+  if (!session || !session.session_id) throw new Error('Invalid session');
 
   const entry = {
     session: { ...session, updated_at: new Date().toISOString() },
@@ -25,40 +47,77 @@ export function saveSession(session, marks) {
     saved_at: new Date().toISOString()
   };
 
-  if (existingIndex >= 0) {
-    sessions[existingIndex] = entry;
+  // 1. Write to localStorage immediately (keeps UI responsive)
+  const sessions = getAllSessions();
+  const idx = sessions.findIndex(s => s.session.session_id === session.session_id);
+  if (idx >= 0) {
+    sessions[idx] = entry;
   } else {
     sessions.push(entry);
   }
+  writeLocalCache(sessions);
 
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(sessions));
-  } catch (error) {
-    throw new Error('Failed to save session: storage may be full');
-  }
+  // 2. Write to Firestore in the background (non-blocking)
+  persistSession(entry.session, entry.marks).catch(err =>
+    console.error('Firestore save failed:', err.message)
+  );
 
   return entry;
 }
 
+// ── Read ──────────────────────────────────────────────────────────────────────
+
 export function getSession(sessionId) {
   if (!sessionId) return null;
-  const sessions = getAllSessions();
-  return sessions.find(s => s.session.session_id === sessionId) || null;
+  return getAllSessions().find(s => s.session.session_id === sessionId) || null;
 }
 
-export function deleteSession(sessionId) {
-  const sessions = getAllSessions().filter(s => s.session.session_id !== sessionId);
+export async function getSessionRemote(sessionId) {
+  if (!sessionId) return null;
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(sessions));
-  } catch (error) {
-    console.error('Failed to delete session', error);
+    return await fetchSession(sessionId);
+  } catch {
+    return getSession(sessionId);
   }
 }
 
+// ── Delete ────────────────────────────────────────────────────────────────────
+
+// Per security rules, sessions are never hard-deleted — use status transitions.
+export function deleteSession(sessionId) {
+  const sessions = getAllSessions().filter(s => s.session.session_id !== sessionId);
+  try {
+    writeLocalCache(sessions);
+  } catch (err) {
+    console.error('Failed to delete session from cache', err);
+  }
+}
+
+// ── Storage health ────────────────────────────────────────────────────────────
+
+export function getStorageUsageKB() {
+  let total = 0;
+  for (const key of Object.keys(localStorage)) {
+    total += (localStorage.getItem(key) || '').length;
+  }
+  return Math.round(total / 1024);
+}
+
+export function archiveOldSessions(keepMonths = 3) {
+  const cutoff = new Date();
+  cutoff.setMonth(cutoff.getMonth() - keepMonths);
+  const sessions = getAllSessions().filter(s => {
+    const d = new Date(s.session.date);
+    return d >= cutoff || s.session.status === 'draft';
+  });
+  writeLocalCache(sessions);
+}
+
+// ── Duplicate check ───────────────────────────────────────────────────────────
+
 export function findDuplicateSession({ teacher_name, class: className, subject_id, date }) {
   if (!teacher_name || !className || !subject_id || !date) return null;
-  const sessions = getAllSessions();
-  return sessions.find(s =>
+  return getAllSessions().find(s =>
     s.session.teacher_name === teacher_name &&
     s.session.class === className &&
     s.session.subject_id === subject_id &&

@@ -67,7 +67,8 @@ export function isLoggedIn() {
 }
 
 export function isTeacher() {
-  return getCurrentUser()?.role === 'teacher';
+  const role = getCurrentUser()?.role;
+  return role === 'teacher' || role === 'admin' || role === 'super_admin';
 }
 
 export function isAdmin() {

@@ -86,7 +86,7 @@ export async function getStudentAnalytics(studentId, className, monthsBack = 6) 
     subjectAverages,
     strongestSubject,
     weakestSubject,
-    averageOverall,
+    averageOverall: avgOverall,
     totalMonths: monthlyData.length
   };
 }

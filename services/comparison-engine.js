@@ -1,18 +1,13 @@
-import { getEligibleSessions, extractYearMonth } from './aggregation-engine.js';
-import { getAllSessions } from './session-storage.js';
+import { aggregateByMonth, getEligibleSessions, extractYearMonth } from './aggregation-engine.js';
+import { getCompletionAnalytics } from './analytics-engine.js';
 
 export async function getMonthTrend(className, currentYearMonth) {
   const prevYearMonth = getPreviousMonth(currentYearMonth);
   if (!prevYearMonth) return { delta: 0, direction: 'stable', label: 'No previous data' };
 
-  const [{ aggregateByMonth: aggCurrent }, { aggregateByMonth: aggPrev }] = await Promise.all([
-    import('./aggregation-engine.js'),
-    import('./aggregation-engine.js')
-  ]);
-
   const [current, previous] = await Promise.all([
-    aggCurrent(currentYearMonth, className),
-    aggPrev(prevYearMonth, className)
+    aggregateByMonth(currentYearMonth, className),
+    aggregateByMonth(prevYearMonth, className)
   ]);
 
   if (!current || !previous || current.classAverage === undefined || previous.classAverage === undefined) {
@@ -45,7 +40,6 @@ export function classifyPerformance(percentage) {
 }
 
 export async function getClassComparison(classes, yearMonth) {
-  const { aggregateByMonth } = await import('./aggregation-engine.js');
   const results = [];
 
   for (const className of classes) {
@@ -77,7 +71,6 @@ export async function getClassComparison(classes, yearMonth) {
 }
 
 export async function getSubjectComparison(className, yearMonth) {
-  const { aggregateByMonth } = await import('./aggregation-engine.js');
   const agg = await aggregateByMonth(yearMonth, className);
 
   if (agg.subjects.length < 2) return { best: null, worst: null, comparisons: [] };
@@ -96,18 +89,12 @@ export async function getSubjectComparison(className, yearMonth) {
 }
 
 export async function getCompletionTrend(className, yearMonth) {
-  const { getCompletionAnalytics } = await import('./analytics-engine.js');
   const current = getCompletionAnalytics(className, yearMonth);
-
   const prevYearMonth = getPreviousMonth(yearMonth);
   const previous = prevYearMonth ? getCompletionAnalytics(className, prevYearMonth) : null;
 
   if (!previous || previous.total === 0) {
-    return {
-      delta: 0,
-      direction: 'stable',
-      label: `${current.completionRate}% completion`
-    };
+    return { delta: 0, direction: 'stable', label: `${current.completionRate}% completion` };
   }
 
   const delta = current.completionRate - previous.completionRate;

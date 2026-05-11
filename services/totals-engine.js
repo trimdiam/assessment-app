@@ -5,20 +5,21 @@ export function calculateStudentTotal(studentMarks, criteria) {
 
   let total = 0;
   let completed = 0;
+  let absentCount = 0;
   const totalCriteria = criteria.length;
 
   criteria.forEach(criterion => {
     const entry = studentMarks[criterion.criterion_id];
     const isAbsent = entry && typeof entry === 'object' && entry.attendance === 'absent';
-    const mark = isAbsent ? null : entry;
-
-    if (mark !== null && mark !== undefined && !isAbsent) {
-      total += mark;
+    if (isAbsent) {
+      absentCount++;
+    } else if (entry !== null && entry !== undefined) {
+      total += entry;
       completed++;
     }
   });
 
-  const max = totalCriteria * 5;
+  const max = Math.max(0, (totalCriteria - absentCount) * 5);
   const percentage = max > 0 ? Math.round((total / max) * 100) : 0;
 
   return { total, max, percentage, completed, totalCriteria };

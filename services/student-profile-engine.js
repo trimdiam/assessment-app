@@ -5,7 +5,7 @@ import { getStudentAbsences } from './attendance-engine.js';
 
 export async function getStudentProfile(studentId, className) {
   const analytics = await getStudentAnalytics(studentId, className);
-  const agg = await aggregateByMonth('', className);
+  const agg = await aggregateByMonth(null, className);
   const weak = detectWeakStudents(agg);
   const weakRecord = weak.find(w => w.student_id === studentId);
   const attendance = getStudentAbsences(studentId, className);

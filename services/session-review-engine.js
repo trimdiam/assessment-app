@@ -63,7 +63,7 @@ export function canTransitionStatus(currentStatus, newStatus) {
   return allowed && allowed.includes(newStatus);
 }
 
-export function updateSessionStatus(sessionId, newStatus) {
+export async function updateSessionStatus(sessionId, newStatus) {
   const stored = getSession(sessionId);
   if (!stored) {
     return { ok: false, error: 'Session not found' };

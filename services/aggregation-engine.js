@@ -33,7 +33,7 @@ export function getEligibleSessions(filters = {}) {
     if (status !== 'reviewed' && status !== 'locked') return false;
     if (filters.class && s.session.class !== filters.class) return false;
     if (filters.subject_id && s.session.subject_id !== filters.subject_id) return false;
-    if (filters.yearMonth && !s.session.date.startsWith(filters.yearMonth)) return false;
+    if (filters.yearMonth && !s.session.date.startsWith(filters.yearMonth)) return false; // null/undefined skips this
     return true;
   });
 }
@@ -44,7 +44,7 @@ export function extractYearMonth(dateStr) {
 }
 
 export async function aggregateByMonth(yearMonth, className, options = {}) {
-  const cacheKey = `${yearMonth}_${className || 'all'}`;
+  const cacheKey = `${yearMonth || 'all'}_${className || 'all'}`;
   const cache = getAggregationCache();
 
   if (!options.force && cache[cacheKey]) {
@@ -94,7 +94,6 @@ export async function aggregateByMonth(yearMonth, className, options = {}) {
 
     for (const [studentId, criterionMarks] of Object.entries(marks)) {
       subAgg.studentCount.add(studentId);
-      subAgg.totalMax += maxPerSession;
       let studentTotal = 0;
       let absentCount = 0;
       Object.values(criterionMarks).forEach(m => {
@@ -105,7 +104,9 @@ export async function aggregateByMonth(yearMonth, className, options = {}) {
           absentCount++;
         }
       });
+      const effectiveMax = Math.max(0, maxPerSession - absentCount * 5);
       subAgg.totalMarks += studentTotal;
+      subAgg.totalMax += effectiveMax;
 
       const key = `${studentId}_${sess.subject_id}`;
       if (!studentSubjectTotals.has(key)) {
@@ -121,7 +122,7 @@ export async function aggregateByMonth(yearMonth, className, options = {}) {
       }
       const sst = studentSubjectTotals.get(key);
       sst.totalMarks += studentTotal;
-      sst.totalMax += maxPerSession;
+      sst.totalMax += effectiveMax;
       sst.sessions++;
       sst.totalAbsences += absentCount;
     }

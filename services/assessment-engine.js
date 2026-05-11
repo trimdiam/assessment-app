@@ -54,7 +54,9 @@ export function initializeMarksState(students, criteria) {
 }
 
 export function validateMark(mark) {
-  return mark === null || (Number.isInteger(mark) && mark >= 0 && mark <= 5);
+  if (mark === null) return true;
+  if (mark && typeof mark === 'object' && mark.attendance === 'absent') return true;
+  return Number.isInteger(mark) && mark >= 0 && mark <= 5;
 }
 
 function validateSessionFields({ teacher_name, class: className, subject, date }) {

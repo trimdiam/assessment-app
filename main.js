@@ -16,7 +16,7 @@ import { loadStudentsForClass } from './services/student-loader.js';
 import { createSession, validateMark } from './services/assessment-engine.js';
 import { initializeMarksWithDefault } from './services/fast-entry-engine.js';
 import { calculateSessionProgress } from './services/totals-engine.js';
-import { saveSession, getSession, getAllSessions } from './services/session-storage.js';
+import { saveSession, getSession, getAllSessions, syncSessionsFromFirestore } from './services/session-storage.js';
 import {
   updateSessionStatus,
   loadFullSessionData,
@@ -84,7 +84,13 @@ async function init() {
   // Auto-fill teacher name from persisted login session
   const currentUser = getCurrentUser();
   if (currentUser?.name) state.teacherName = currentUser.name;
-  render();
+
+  // Pull latest sessions from Firestore into local cache, then render
+  if (isLoggedIn()) {
+    syncSessionsFromFirestore().finally(() => render());
+  } else {
+    render();
+  }
 }
 
 function render() {
@@ -113,7 +119,7 @@ function renderLogin() {
   assessmentRoot.append(createLoginForm({
     onLogin: (user) => {
       if (user?.name) state.teacherName = user.name;
-      render();
+      syncSessionsFromFirestore().finally(() => render());
     },
     onLogout: () => render(),
     onGenerateDemo: generateDemoData,
@@ -364,6 +370,8 @@ function renderAdmin() {
     return;
   }
 
+  assessmentRoot.replaceChildren();
+
   if (state.viewingStudentProfile) {
     assessmentRoot.append(createStudentProfile({
       studentId: state.viewingStudentProfile,
@@ -395,6 +403,7 @@ function renderAdmin() {
     btn.textContent = t.label;
     btn.addEventListener('click', () => {
       state.adminView = t.key;
+      state.viewingStudentProfile = null;
       render();
     });
     tabs.append(btn);
@@ -529,12 +538,10 @@ async function renderAdminReview() {
 
 async function renderAdminSummary() {
   try {
-    const data = await aggregateByMonth(state.summaryYearMonth, state.summaryClass);
     assessmentRoot.append(createMonthlySummary({
       classes,
       yearMonth: state.summaryYearMonth,
       className: state.summaryClass,
-      aggregatedData: data,
       onBack: () => {
         state.adminView = 'sessions';
         render();
@@ -896,7 +903,11 @@ function mergeMarks(savedMarks, students, criteria) {
 }
 
 function getToday() {
-  return new Date().toISOString().split('T')[0];
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 function formatTime(dateObj) {
