@@ -81,6 +81,9 @@ async function init() {
     console.error(error);
     state.errorMessage = 'Failed to load subjects';
   }
+  // Auto-fill teacher name from persisted login session
+  const currentUser = getCurrentUser();
+  if (currentUser?.name) state.teacherName = currentUser.name;
   render();
 }
 
@@ -108,7 +111,10 @@ function renderLogin() {
   setupRoot.replaceChildren();
   assessmentRoot.replaceChildren();
   assessmentRoot.append(createLoginForm({
-    onLogin: () => render(),
+    onLogin: (user) => {
+      if (user?.name) state.teacherName = user.name;
+      render();
+    },
     onLogout: () => render(),
     onGenerateDemo: generateDemoData,
     onClearDemo: clearDemoData
