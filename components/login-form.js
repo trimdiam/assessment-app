@@ -37,11 +37,11 @@ export function createLoginForm({ onLogin = () => {}, onLogout = () => {}, onGen
   const emailField = document.createElement('div');
   emailField.className = 'field';
   const emailLabel = document.createElement('label');
-  emailLabel.textContent = 'Email';
+  emailLabel.textContent = 'Login ID';
   const emailInput = document.createElement('input');
-  emailInput.type = 'email';
+  emailInput.type = 'text';
   emailInput.className = 'text-input';
-  emailInput.placeholder = 'teacher@sfds.com';
+  emailInput.placeholder = 'Staff ID (e.g. SFST001) or admin email';
   emailInput.required = true;
   emailField.append(emailLabel, emailInput);
   form.append(emailField);
@@ -61,7 +61,7 @@ export function createLoginForm({ onLogin = () => {}, onLogout = () => {}, onGen
   const hint = document.createElement('p');
   hint.className = 'empty-state';
   hint.style.fontSize = '0.85rem';
-  hint.innerHTML = `Teacher: <strong>teacher@sfds.com</strong> / sfds123<br>Admin: <strong>admin@sfds.com</strong> / sfds123`;
+  hint.innerHTML = `Teachers: enter your Staff ID (e.g. <strong>SFST001</strong>)<br>Admin: enter your email (e.g. <strong>admin@test.com</strong>)`;
   form.append(hint);
 
   const errorEl = document.createElement('p');

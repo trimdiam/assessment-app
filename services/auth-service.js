@@ -1,23 +1,35 @@
+import { auth, db } from './firebase-config.js';
+import {
+  signInWithEmailAndPassword,
+  signOut,
+  onAuthStateChanged
+} from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
 const AUTH_KEY = 'sfds_auth_user';
 
-const MOCK_USERS = [
-  { uid: 'T001', email: 'teacher@sfds.com', name: 'Mr. John', role: 'teacher' },
-  { uid: 'A001', email: 'admin@sfds.com', name: 'Admin', role: 'admin' }
-];
+function idToEmail(id) {
+  if (id.includes('@')) return id; // admin uses real email
+  return id.trim().toLowerCase().replace(/[^a-z0-9]/g, '_') + '@stfrancis.school';
+}
 
-export async function login(email, password) {
-  // TODO: Replace with Firebase Auth signInWithEmailAndPassword
-  const user = MOCK_USERS.find(u => u.email === email);
-  if (!user || password !== 'sfds123') {
-    throw new Error('Invalid email or password');
-  }
-  const authUser = { ...user };
+export async function login(loginId, password) {
+  const email = idToEmail(loginId);
+  const credential = await signInWithEmailAndPassword(auth, email, password);
+  const uid = credential.user.uid;
+
+  // Fetch role from Firestore users collection
+  const userDoc = await getDoc(doc(db, 'users', uid));
+  const role = userDoc.exists() ? (userDoc.data().role || 'teacher') : 'teacher';
+  const name = userDoc.exists() ? (userDoc.data().name || email) : email;
+
+  const authUser = { uid, email, name, role };
   localStorage.setItem(AUTH_KEY, JSON.stringify(authUser));
   return authUser;
 }
 
-export function logout() {
-  // TODO: Replace with Firebase Auth signOut
+export async function logout() {
+  await signOut(auth);
   localStorage.removeItem(AUTH_KEY);
 }
 
@@ -39,7 +51,8 @@ export function isTeacher() {
 }
 
 export function isAdmin() {
-  return getCurrentUser()?.role === 'admin';
+  const role = getCurrentUser()?.role;
+  return role === 'admin' || role === 'super_admin';
 }
 
 export function requireAuth() {
@@ -51,4 +64,8 @@ export function requireRole(role) {
   if (!user || user.role !== role) {
     throw new Error(`Access denied: ${role} role required`);
   }
+}
+
+export function onAuthChange(callback) {
+  return onAuthStateChanged(auth, callback);
 }
