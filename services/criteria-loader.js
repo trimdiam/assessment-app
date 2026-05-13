@@ -72,7 +72,7 @@ export function validateCriteriaFile(criteriaFile, className) {
 
 export function buildAssessmentStructure({ student, subject, criteria, className }) {
   return {
-    student_id: student?.student_id || student?.studentId || '',
+    student_id: student?.student_id || '',
     full_name: student?.full_name || student?.fullName || '',
     class: className || student?.class || '',
     subject_id: subject?.subject_id || '',

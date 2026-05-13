@@ -7,9 +7,24 @@ import {
   setDoc,
   query,
   where
-} from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+} from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js';
 
-const COLLECTION = 'assessment_sessions';
+const COLLECTION            = 'assessment_sessions';
+const ANALYTICS_COLLECTION  = 'monthly_analytics';
+const WEAK_COL              = 'weak_students';
+const PROFILES_COL          = 'student_profiles';
+
+// Firestore document ID for a class+month pair. Spaces → underscores so
+// 'Class I' becomes 'Class_I', safe for use as a doc ID.
+function analyticsDocId(yearMonth, className) {
+  return `${yearMonth}_${String(className).replace(/\s+/g, '_')}`;
+}
+
+// studentId values like 'SFS/2025/001' contain slashes which are illegal in
+// Firestore document IDs. Replace with underscores: 'SFS_2025_001'.
+function sanitizeDocId(id) {
+  return String(id).replace(/\//g, '_').replace(/\s+/g, '_');
+}
 
 export async function fetchSessions(filters = {}) {
   let q = collection(db, COLLECTION);
@@ -47,4 +62,55 @@ export async function fetchSession(sessionId) {
 // Sessions are never hard-deleted per security rules — use status transitions instead.
 export async function removeSession(_sessionId) {
   console.warn('Session deletion is disabled. Use status transitions instead.');
+}
+
+// ── Monthly analytics ─────────────────────────────────────────────────────────
+
+export async function persistMonthlyAnalytics(yearMonth, className, data) {
+  const docId = analyticsDocId(yearMonth, className);
+  await setDoc(doc(db, ANALYTICS_COLLECTION, docId), {
+    ...data,
+    persistedAt: new Date().toISOString()
+  });
+}
+
+export async function fetchMonthlyAnalytics(yearMonth, className) {
+  const docId = analyticsDocId(yearMonth, className);
+  const snap = await getDoc(doc(db, ANALYTICS_COLLECTION, docId));
+  return snap.exists() ? snap.data() : null;
+}
+
+// ── Weak students ─────────────────────────────────────────────────────────────
+
+export async function persistWeakStudents(yearMonth, className, flaggedList) {
+  const docId = analyticsDocId(yearMonth, className);
+  await setDoc(doc(db, WEAK_COL, docId), {
+    yearMonth,
+    class: className,
+    flaggedStudents: flaggedList,
+    persistedAt: new Date().toISOString()
+  });
+}
+
+export async function fetchWeakStudents(yearMonth, className) {
+  const docId = analyticsDocId(yearMonth, className);
+  const snap = await getDoc(doc(db, WEAK_COL, docId));
+  return snap.exists() ? snap.data().flaggedStudents : null;
+}
+
+// ── Student profiles ──────────────────────────────────────────────────────────
+
+export async function persistStudentProfile(studentId, profileData) {
+  const docId = sanitizeDocId(studentId);
+  await setDoc(doc(db, PROFILES_COL, docId), {
+    ...profileData,
+    studentId,
+    persistedAt: new Date().toISOString()
+  });
+}
+
+export async function fetchStudentProfile(studentId) {
+  const docId = sanitizeDocId(studentId);
+  const snap = await getDoc(doc(db, PROFILES_COL, docId));
+  return snap.exists() ? snap.data() : null;
 }

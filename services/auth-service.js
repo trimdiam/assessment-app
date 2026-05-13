@@ -3,8 +3,8 @@ import {
   signInWithEmailAndPassword,
   signOut,
   onAuthStateChanged
-} from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
-import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+} from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js';
+import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js';
 
 const AUTH_KEY = 'sfds_auth_user';
 
@@ -89,4 +89,48 @@ export function requireRole(role) {
 
 export function onAuthChange(callback) {
   return onAuthStateChanged(auth, callback);
+}
+
+// Detects an existing Firebase Auth session (e.g. logged in via pro-leo-site)
+// and auto-populates the assessment-app localStorage session without re-login.
+// Only teacher / admin roles are allowed into the assessment-app.
+export function resolveAuthSession() {
+  return new Promise(resolve => {
+    const unsub = onAuthStateChanged(auth, async firebaseUser => {
+      unsub();
+      if (!firebaseUser) { resolve(); return; }
+      // Already have a valid local session — nothing to do
+      if (getCurrentUser()) { resolve(); return; }
+      try {
+        const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+        if (!userDoc.exists()) { resolve(); return; }
+        const data = userDoc.data();
+        const role = data.role || '';
+        // Students and office staff are not allowed in the assessment-app
+        if (!['teacher', 'admin', 'super_admin'].includes(role)) { resolve(); return; }
+        let name = data.name || firebaseUser.email;
+        const teacherId = (data.teacherId || data.loginId || '').toUpperCase();
+        if ((role === 'teacher') && teacherId) {
+          try {
+            const tDoc = await getDoc(doc(db, 'teachers', teacherId));
+            if (tDoc.exists()) {
+              const t = tDoc.data();
+              name = (t.title ? t.title + ' ' : '') + (t.name || name);
+            }
+          } catch (e) { /* use fallback name */ }
+        }
+        const authUser = {
+          uid: firebaseUser.uid,
+          email: firebaseUser.email,
+          name: name.trim(),
+          role,
+          teacherId
+        };
+        localStorage.setItem(AUTH_KEY, JSON.stringify(authUser));
+      } catch (e) {
+        console.warn('[auth] Auto-login from shared Firebase session failed:', e.message);
+      }
+      resolve();
+    });
+  });
 }

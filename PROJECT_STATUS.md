@@ -1,136 +1,211 @@
-# SFDS Assessment App — Project Status
+# SFDS Ecosystem Integration — Project Status
 
-## School
-St. Francis De Sales Sec. School
+## Integration Overview
 
-## Architecture
-Standalone mobile-first progressive web app.
-Modular ES6 modules. No framework dependencies except Chart.js for graphs.
+| App | Role | Repository |
+|-----|------|------------|
+| pro-leo-site | Main school management portal | `e:\PROJECT LEO 2\LATEST MAY 12\pro-leo-site` |
+| assessment-app | Academic intelligence + assessment module | `e:\PROJECT 26\assessment-app` |
 
-## Completed Stages
+Both apps share:
+- **Same Firebase Project:** `st-francis-school-a3e7e`
+- **Same Firestore Database**
+- **Same Authentication Ecosystem**
+- **Same Student Identity System** (`student_id` as universal key)
 
-### Stage 1 — Student Data Layer
-- Student JSON structure
-- Class-based student files (`/data/students/`)
-- Student loader service
+---
 
-### Stage 2 — Dynamic Subject System
-- Dynamic subject registry (`/data/subjects.json`)
-- Criteria JSON files per subject (`/data/criteria/`)
-- Criteria loader service
-- Subject selector component
+## Completed Phases
 
-### Stage 3 — Assessment Sessions
-- Teacher session workflow
-- Tap-to-fill mark entry (0–5)
-- Session persistence (localStorage)
-- Autosave support
-- Session reload / resume
-- Duplicate session detection
+### ✅ Phase 1 — Shared Firebase Foundation
+**Date:** 2026-05-12
 
-### Combined Stage 4–6 — Admin & Intelligence
-- Admin session dashboard
-- Session status workflow (draft → submitted → reviewed → locked)
-- Session locking system
-- Monthly aggregation engine
-- Class / subject / student averages
-- Weak student detection engine with configurable rules
-- Weak student admin view
+**Tasks Completed:**
+- Inspected existing Firebase config in pro-leo-site
+- Inspected current persistence structure in assessment-app
+- Aligned Firebase SDK versions to **10.13.0** across both apps
+- Added `assessment_sessions` collection to Firestore security rules
+- Verified assessment-app already reads `students/` collection from shared Firestore
+- Local JSON fallback preserved for offline resilience
 
-### Stage 7 — Analytics & Visualization
-- Analytics engine (student, class, subject, school-wide)
-- Graph data engine (line, bar, doughnut, horizontal bar)
-- Chart.js integration
-- Admin analytics dashboard (Overview, Student, Class, Subject, Completion)
-- Responsive chart containers
+**Files Modified:**
+- `assessment-app/services/firebase-config.js` — SDK 10.13.0
+- `assessment-app/services/student-loader.js` — SDK 10.13.0
+- `assessment-app/services/firestore-service.js` — SDK 10.13.0
+- `assessment-app/services/auth-service.js` — SDK 10.13.0
+- `pro-leo-site/firestore.rules` — Added `assessment_sessions` rules
 
-### Current Stage — Auth, Roles, Profiles, Fast Entry
-- Authentication service (mock users, ready for Firebase)
-- Teacher / admin role separation
-- Protected navigation (teachers see only assessment; admins see admin panel)
-- Login / logout system
-- Student monthly profile view with progress graphs and subject breakdown
-- Default score workflow (default = 4)
-- Quick entry mode (criterion-centric grid for fast batch grading)
-- Firestore-compatible persistence service (currently backed by localStorage)
+**Success Condition:** ✅ assessment-app successfully reads `students/` from the same Firebase backend used by pro-leo-site.
 
-## Project Structure
+### ✅ Phase 2 — Shared Student Identity System
+**Date:** 2026-05-12
 
+**Tasks Completed:**
+- Exported `CLASS_MAP` and `FIRESTORE_TO_DISPLAY_CLASS` from `student-loader.js` as canonical sources of truth
+- Hardened `normalizeStudent()`: class field now always resolves to display name (e.g. `'Class I'` not `'1'`), `roll_no` always coerced to string, warning logged on missing `student_id`
+- Fixed `analytics-engine.js` `getStudentAnalytics()` return contract: `studentId` key corrected to `student_id`
+- Fixed `student-profile.js` fallback: `profile.studentId` → `profile.student_id`
+- Removed stale `student?.studentId` fallback from `criteria-loader.js` `buildAssessmentStructure()`
+
+**Files Modified:**
+- `assessment-app/services/student-loader.js` — CLASS_MAP exported, FIRESTORE_TO_DISPLAY_CLASS added, normalizeStudent() hardened
+- `assessment-app/services/analytics-engine.js` — corrected student_id return key
+- `assessment-app/components/student-profile.js` — corrected student_id fallback
+- `assessment-app/services/criteria-loader.js` — removed studentId fallback
+
+**Success Condition:** ✅ Both apps recognize the SAME student using the SAME `student_id`. Normalized student objects always carry display-form class names and string roll numbers.
+
+### ✅ Phase 3 — Assessment Data Persistence
+**Date:** 2026-05-12
+
+**Tasks Completed:**
+- Added `persistMonthlyAnalytics`, `fetchMonthlyAnalytics`, `persistWeakStudents`, `fetchWeakStudents`, `persistStudentProfile`, `fetchStudentProfile` to `firestore-service.js`
+- `aggregation-engine.js`: reads Firestore before computing (cross-device cache hit); writes to Firestore after computing
+- `weak-student-engine.js`: new `detectAndPersistWeakStudents()` async wrapper writes flags to Firestore in background without changing synchronous callers
+- `student-profile-engine.js`: writes computed profile to `student_profiles/{sanitizedStudentId}` in background on every `getStudentProfile()` call
+- `session-review-engine.js`: on `reviewed` or `locked` transition, triggers forced recompute + Firestore persist for that class+month
+- `pro-leo-site/firestore.rules`: added rules for `monthly_analytics`, `weak_students`, `student_profiles`; students can self-read their own profile document
+
+**Files Modified:**
+- `assessment-app/services/firestore-service.js`
+- `assessment-app/services/aggregation-engine.js`
+- `assessment-app/services/weak-student-engine.js`
+- `assessment-app/services/student-profile-engine.js`
+- `assessment-app/services/session-review-engine.js`
+- `pro-leo-site/firestore.rules`
+
+**Document ID conventions:**
+- `monthly_analytics` + `weak_students`: `{yearMonth}_{className_spaces_as_underscores}` e.g. `2026-05_Class_I`
+- `student_profiles`: studentId with slashes replaced by underscores e.g. `SFS_2025_001`
+
+**Success Condition:** ✅ Assessment intelligence persists correctly in Firestore. Analytics survive device switches and browser clears.
+
+### ✅ Phase 4 — Student Academic Profile Engine
+**Date:** 2026-05-12
+
+**Tasks Completed:**
+- Created `services/student-snapshot-engine.js` with `buildStudentSnapshot(studentId, profile)`
+- Snapshot shapes the full analytics profile into a lean, canonical document for cross-app reading
+- Updated `services/student-profile-engine.js`: UI still receives the full profile; Firestore receives only the lean snapshot
+
+**Snapshot document structure (`student_profiles/{sanitizedStudentId}`):**
 ```
-/data
-  /criteria
-  /students
-  subjects.json
-/services
-  analytics-engine.js
-  assessment-engine.js
-  auth-service.js
-  criteria-loader.js
-  fast-entry-engine.js
-  firebase-config.js
-  firestore-service.js
-  graph-data-engine.js
-  aggregation-engine.js
-  session-review-engine.js
-  session-storage.js
-  student-loader.js
-  student-profile-engine.js
-  subject-loader.js
-  totals-engine.js
-  weak-student-engine.js
-/components
-  analytics-dashboard.js
-  assessment-card.js
-  criteria-list.js
-  login-form.js
-  monthly-summary.js
-  quick-entry-grid.js
-  session-list.js
-  session-review.js
-  session-setup.js
-  session-toolbar.js
-  student-profile.js
-  subject-selector.js
-  weak-student-list.js
-index.html
-main.js
-styles.css
-PROJECT_STATUS.md
+studentId, student_id, full_name, class, roll_no
+overallAverage, monthsTracked, totalSessions
+strongestSubject: { subject_id, subject_name, averagePercentage }
+weakestSubject:   { subject_id, subject_name, averagePercentage }
+trendDirection, trendLabel, trendDelta
+attendanceRisk (bool), attendanceRiskLevel
+activeAlerts[], alertReasons[]
+summaryText
+lastUpdated
 ```
 
-## Active Classes
-- Class I
-- Class II
+**Files Modified:**
+- `assessment-app/services/student-snapshot-engine.js` — new file
+- `assessment-app/services/student-profile-engine.js` — write snapshot not raw profile
 
-## Future-Ready Support
-- LKG
-- SKG
+**Success Condition:** ✅ Each student has a centralized, lean academic intelligence document in Firestore ready for pro-leo-site to read.
 
-## Firebase Migration Status
-- `firebase-config.js` placeholder created
-- `auth-service.js` uses mock users; replace with Firebase Auth
-- `firestore-service.js` uses localStorage; replace with Firestore SDK
-- All existing data structures remain compatible
+### ✅ Phase 5 — Main Portal Academic Snapshot
+**Date:** 2026-05-12
 
-## Default Score
-- Hard-set to 4
-- Represents realistic "good/normal" performance
-- Teachers can override any mark
+**Tasks Completed:**
+- Added `#s-academic-snapshot` div to `index.html` inside `#s-profile`, after `profile-info-grid`
+- Added all snapshot card CSS to `styles.css` using existing CSS variable conventions
+- Added `loadAcademicSnapshot(studentId)` async function to `app-logic.js`
+- Wired call into `loadStudentProfile()` — non-blocking, fire-and-forget
+- Document ID sanitization matches assessment-app convention: `SFS/2025/001` → `SFS_2025_001`
 
-## Authentication (Mock)
-| Email | Password | Role |
-|-------|----------|------|
-| teacher@sfds.com | sfds123 | teacher |
-| admin@sfds.com | sfds123 | admin |
+**Snapshot widget displays:**
+- Overall average % + trend badge (↑ Improving / ↓ Declining / → Stable)
+- Months tracked + total sessions
+- Strongest subject name + %
+- Weakest subject name + %
+- Alert box (only shown if activeAlerts.length > 0)
+- Summary text sentence
+- "View Full Academic Report →" button (wired in Phase 6 via `window._academicAppUrl`)
 
-## Remaining Roadmap
-- Stage 8: Report Card Generation (after separate design phase)
-- Firebase integration (replace mock auth + localStorage)
-- Cloud sync for multi-device access
+**Graceful degradation:**
+- No student_profiles doc → "Academic report not yet available" message
+- Firestore error → "Could not load academic report" message
+- Either state: rest of student portal completely unaffected
 
-## Key Design Principles
+**Files Modified:**
+- `pro-leo-site/index.html`
+- `pro-leo-site/styles.css`
+- `pro-leo-site/app-logic.js`
+
+**Success Condition:** ✅ Student profile page displays academic intelligence snapshot read from Firestore.
+
+### ⬜ Phase 6 — Full Report Deep-Link System
+- Connect main portal to full assessment dashboard via deep links
+
+### ⬜ Phase 7 — Shared Authentication Ecosystem
+- Implement cross-app single sign-on
+
+### ⬜ Phase 8 — Security Rules + Access Control
+- Production-grade role-based security rules
+
+### ⬜ Phase 9 — Ecosystem UX Refinement
+- Unified branding, cross-app navigation
+
+### ⬜ Phase 10 — Future Expansion Readiness
+- Architecture prepared for parent portal, PDF reports, push notifications
+
+---
+
+## Shared Firestore Collections
+
+| Collection | Location | Access |
+|------------|----------|--------|
+| `students` | Shared | Staff read, Admin/Office write |
+| `teachers` | Shared | Public read, Admin write |
+| `users` | Shared | Self + Admin read, Self write |
+| `assessment_sessions` | Assessment app | Staff read, Teacher/Admin write |
+| `attendance_daily` | pro-leo-site | Staff read, Teacher/Admin write |
+| `attendance_monthly` | pro-leo-site | Staff read/write (with locking) |
+| `fee_transactions` | pro-leo-site | Staff + Student read, Admin/Office write |
+| `homework` | pro-leo-site | Auth read, Teacher/Admin write |
+| `notices` | pro-leo-site | Public read, Admin/Teacher write |
+| `events` | pro-leo-site | Public read, Admin write |
+| `gallery` | pro-leo-site | Public read, Admin write |
+| `announcements` | pro-leo-site | Public read, Admin write |
+| `settings` | pro-leo-site | Public read, Admin write |
+| `admissions` | pro-leo-site | Public create, Staff read/update, Admin delete |
+| `contacts` | pro-leo-site | Public create, Admin read/write |
+| `leave_applications` | pro-leo-site | Auth create, Staff read, Admin update |
+| `newAccountLinks` | pro-leo-site | Auth create, Admin read |
+
+---
+
+## Legacy Assessment App Status
+
+### Active Classes
+- LKG, SKG, Class I, Class II
+
+### Completed Stages (Pre-Integration)
+1. Student Data Layer (JSON + Firestore hybrid)
+2. Dynamic Subject System
+3. Assessment Sessions with tap-to-fill grading
+4. Admin & Intelligence (session status, aggregation, weak student detection)
+5. Analytics & Visualization (Chart.js)
+6. Auth, Roles, Profiles, Fast Entry
+
+### Key Design Principles
 - Mobile-first, low-end Android compatible
 - Minimal typing, large tap targets
-- Modular architecture — no hardcoding
-- student_id is the permanent primary key
-- Reusable components and services
+- Modular ES6 architecture — no framework dependencies except Chart.js
+- `student_id` is the permanent primary key
+- LocalStorage + Firestore hybrid for resilience
+- Default score workflow (default = 4)
+
+---
+
+## Remaining Roadmap
+- Phase 2–10 of ecosystem integration (see ROADMAP.md)
+- Report Card Generation (after Phase 6)
+- Parent Portal (Phase 10+)
+- PDF Report Cards (Phase 10+)
+- Realtime Alerts & Push Notifications (Phase 10+)
+- Mobile App (Phase 10+)

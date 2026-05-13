@@ -34,7 +34,7 @@ async function loadProfile(container, studentId, className) {
     const header = document.createElement('div');
     header.className = 'profile-header';
     header.innerHTML = `
-      <h2 class="section-heading">${profile.full_name || profile.studentId}</h2>
+      <h2 class="section-heading">${profile.full_name || profile.student_id}</h2>
       <div class="profile-meta">Roll No: ${profile.roll_no || '—'} • Class: ${profile.class || className} • Average: ${profile.averageOverall}% • Months: ${profile.totalMonths}</div>
     `;
     container.append(header);

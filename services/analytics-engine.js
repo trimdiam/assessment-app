@@ -78,7 +78,7 @@ export async function getStudentAnalytics(studentId, className, monthsBack = 6) 
   const avgOverall = overallTrend.length > 0 ? Math.round(overallTrend.reduce((a, b) => a + b, 0) / overallTrend.length) : 0;
 
   return {
-    studentId,
+    student_id: studentId,
     full_name: studentInfo.full_name,
     roll_no: studentInfo.roll_no,
     class: studentInfo.class,

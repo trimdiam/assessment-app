@@ -23,7 +23,7 @@ import {
   SESSION_STATUS
 } from './services/session-review-engine.js';
 import { aggregateByMonth, extractYearMonth, clearAggregationCache } from './services/aggregation-engine.js';
-import { getCurrentUser, isTeacher, isAdmin, isLoggedIn } from './services/auth-service.js';
+import { getCurrentUser, isTeacher, isAdmin, isLoggedIn, resolveAuthSession } from './services/auth-service.js';
 import { generateDemoData, clearDemoData } from './services/demo-data-generator.js';
 
 const classes = ['LKG', 'SKG', 'Class I', 'Class II'];
@@ -74,6 +74,9 @@ const setupRoot = document.querySelector('#session-setup-root');
 const assessmentRoot = document.querySelector('#assessment-root');
 let autosaveTimer = null;
 
+// Read ?student= URL param for deep-link from pro-leo-site
+const _deepLinkStudentId = new URLSearchParams(window.location.search).get('student') || '';
+
 async function init() {
   try {
     state.allSubjects = await loadSubjects();
@@ -81,16 +84,52 @@ async function init() {
     console.error(error);
     state.errorMessage = 'Failed to load subjects';
   }
+
+  // Wait for Firebase Auth to resolve — auto-populates localStorage if the
+  // user is already signed in via pro-leo-site (shared Firebase session).
+  await resolveAuthSession();
+
   // Auto-fill teacher name from persisted login session
   const currentUser = getCurrentUser();
   if (currentUser?.name) state.teacherName = currentUser.name;
 
   // Pull latest sessions from Firestore into local cache, then render
   if (isLoggedIn()) {
-    syncSessionsFromFirestore().finally(() => render());
+    syncSessionsFromFirestore().finally(() => {
+      applyDeepLink();
+      render();
+    });
   } else {
-    render();
+    // If Firebase has a session but resolveAuthSession blocked it (e.g. student role),
+    // show a clear access-denied message instead of the login form.
+    import('./services/firebase-config.js').then(({ auth }) => {
+      if (auth.currentUser) {
+        assessmentRoot.replaceChildren();
+        const msg = document.createElement('div');
+        msg.className = 'panel';
+        msg.style.textAlign = 'center';
+        msg.innerHTML = `<h2 style="margin-bottom:8px">Access Denied</h2>
+          <p>This module is for teachers and administrators only.</p>
+          <a href="../pro-leo-site/index.html" style="color:var(--accent);font-weight:700">← Return to Portal</a>`;
+        assessmentRoot.append(msg);
+      } else {
+        render();
+      }
+    }).catch(() => render());
   }
+}
+
+function applyDeepLink() {
+  if (!_deepLinkStudentId || !isAdmin()) return;
+  // Resolve class from sessions so the profile engine has the right scope
+  const sessions = getAllSessions();
+  const match = sessions.find(s =>
+    s.marks && Object.keys(s.marks).includes(_deepLinkStudentId)
+  );
+  state.mode = 'admin';
+  state.adminView = 'analytics';
+  state.analyticsClass = match?.session?.class || '';
+  state.viewingStudentProfile = _deepLinkStudentId;
 }
 
 function render() {
@@ -119,7 +158,10 @@ function renderLogin() {
   assessmentRoot.append(createLoginForm({
     onLogin: (user) => {
       if (user?.name) state.teacherName = user.name;
-      syncSessionsFromFirestore().finally(() => render());
+      syncSessionsFromFirestore().finally(() => {
+        applyDeepLink();
+        render();
+      });
     },
     onLogout: () => render(),
     onGenerateDemo: generateDemoData,

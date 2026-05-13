@@ -1,6 +1,7 @@
 import { getAllSessions } from './session-storage.js';
 import { loadStudentsForClass } from './student-loader.js';
 import { calculateStudentTotal, getMarkValue } from './totals-engine.js';
+import { persistMonthlyAnalytics, fetchMonthlyAnalytics } from './firestore-service.js';
 
 const AGGREGATION_CACHE_KEY = 'sfds_aggregation_cache';
 
@@ -49,6 +50,21 @@ export async function aggregateByMonth(yearMonth, className, options = {}) {
 
   if (!options.force && cache[cacheKey]) {
     return cache[cacheKey];
+  }
+
+  // Try Firestore before recomputing — lets a different device pick up
+  // persisted results without having to re-aggregate from sessions.
+  if (!options.force && yearMonth && className) {
+    try {
+      const remote = await fetchMonthlyAnalytics(yearMonth, className);
+      if (remote) {
+        cache[cacheKey] = remote;
+        saveAggregationCache(cache);
+        return remote;
+      }
+    } catch (err) {
+      console.warn('Firestore analytics fetch failed, computing locally:', err.message);
+    }
   }
 
   const sessions = getEligibleSessions({ yearMonth, class: className });
@@ -203,6 +219,13 @@ export async function aggregateByMonth(yearMonth, className, options = {}) {
 
   cache[cacheKey] = result;
   saveAggregationCache(cache);
+
+  // Persist to Firestore in the background so other devices can read it.
+  if (yearMonth && className) {
+    persistMonthlyAnalytics(yearMonth, className, result).catch(err =>
+      console.warn('Failed to persist monthly analytics to Firestore:', err.message)
+    );
+  }
 
   return result;
 }

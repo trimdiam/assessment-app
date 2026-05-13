@@ -1,4 +1,5 @@
 import { getClassAttendanceOverview } from './attendance-engine.js';
+import { persistWeakStudents } from './firestore-service.js';
 
 const DEFAULT_RULES = Object.freeze({
   weak_overall: {
@@ -126,4 +127,19 @@ export function detectWeakStudents(aggregatedData, customRules = null) {
 export function resetRulesToDefault() {
   saveWeakStudentRules({ ...DEFAULT_RULES });
   return { ...DEFAULT_RULES };
+}
+
+// Async wrapper: runs detectWeakStudents() and persists the result to Firestore
+// in the background. Returns the same synchronous flagged array so callers are
+// unaffected. Use this instead of detectWeakStudents() at aggregation boundaries.
+export async function detectAndPersistWeakStudents(aggregatedData, customRules = null) {
+  const flagged = detectWeakStudents(aggregatedData, customRules);
+  const ym = aggregatedData?.yearMonth;
+  const cls = aggregatedData?.class;
+  if (ym && cls) {
+    persistWeakStudents(ym, cls, flagged).catch(err =>
+      console.warn('Failed to persist weak students to Firestore:', err.message)
+    );
+  }
+  return flagged;
 }
