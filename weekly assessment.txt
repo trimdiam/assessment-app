@@ -1,0 +1,276 @@
+You are working inside the assessment-app repository of a production-level school assessment system.
+
+========================================================
+CRITICAL CONTEXT
+========================================================
+
+System status:
+- Phase 3: Firestore persistence COMPLETE
+- Phase 4: Student profile engine COMPLETE
+- Phase 5: Portal snapshot COMPLETE
+- Phase 6: Deep linking COMPLETE
+
+Architecture:
+- Session-based system
+- Engines depend on session collections
+- Firestore already contains EXISTING session documents
+
+IMPORTANT:
+Existing sessions may NOT contain weekStart/weekEnd/dueDate.
+These MUST remain functional.
+
+========================================================
+OBJECTIVE
+========================================================
+
+Migrate system from:
+"Daily Session Model"
+→ "Weekly Session Model"
+
+WITHOUT:
+- breaking existing sessions
+- modifying analytics engines
+- changing Firestore collections
+- affecting aggregation pipeline
+
+This is a SAFE EVOLUTION, not a rewrite.
+
+========================================================
+TARGET FILES (FOCUS HERE)
+========================================================
+
+Primary modification targets:
+
+1. main.js
+   → session setup UI logic
+   → session creation flow
+
+2. assessment-engine.js
+   → session object creation/update
+
+3. firestore-service.js
+   → session write/read normalization
+
+4. UI rendering (session setup, draft list, session list)
+
+DO NOT modify:
+- aggregation-engine.js
+- analytics-engine.js
+- comparison-engine.js
+- narrative-summary-engine.js
+- weak-student-engine.js
+
+========================================================
+PHASE 1 — SESSION MODEL UPGRADE
+========================================================
+
+Extend session structure:
+
+NEW FIELDS:
+- weekStart (ISO string)
+- weekEnd (ISO string)
+- dueDate (ISO string)
+- sessionType ("weekly" | "legacy")
+
+Example:
+
+{
+  class: "Class I",
+  subject: "Mathematics",
+  weekStart: "2026-05-12",
+  weekEnd: "2026-05-18",
+  dueDate: "2026-05-18",
+  sessionType: "weekly",
+  status: "draft | submitted | reviewed | locked"
+}
+
+DO NOT remove existing fields.
+
+========================================================
+PHASE 2 — BACKWARD COMPATIBILITY (CRITICAL)
+========================================================
+
+When reading sessions:
+
+IF weekStart is missing:
+
+Treat as legacy session:
+
+weekStart = existing session.date
+weekEnd = session.date
+dueDate = session.date
+sessionType = "legacy"
+
+Implement normalization layer in firestore-service.js:
+
+function normalizeSession(session) {
+  if (!session.weekStart) {
+    return {
+      ...session,
+      weekStart: session.date,
+      weekEnd: session.date,
+      dueDate: session.date,
+      sessionType: "legacy"
+    };
+  }
+  return session;
+}
+
+ALL session reads MUST pass through this.
+
+========================================================
+PHASE 3 — SESSION SETUP UI
+========================================================
+
+Modify session setup in main.js:
+
+Add fields:
+- weekStart (input type="date")
+- weekEnd (input type="date")
+- dueDate (input type="date")
+
+========================================================
+VALIDATION (STRICT — DO NOT SKIP)
+========================================================
+
+Implement EXACT logic:
+
+if (new Date(weekEnd) < new Date(weekStart)) {
+  showError("Week end cannot be before week start");
+  return;
+}
+
+if (new Date(dueDate) < new Date(weekEnd)) {
+  showError("Due date must be on or after week end");
+  return;
+}
+
+========================================================
+PHASE 4 — SESSION CREATION LOGIC
+========================================================
+
+In assessment-engine.js:
+
+When creating session:
+
+session.weekStart = selectedWeekStart
+session.weekEnd = selectedWeekEnd
+session.dueDate = selectedDueDate
+session.sessionType = "weekly"
+
+Ensure:
+Existing logic for marks, students, criteria remains unchanged.
+
+========================================================
+PHASE 5 — UI LABEL UPDATES
+========================================================
+
+Replace user-facing labels:
+
+"Assessment Entry"
+→ "Weekly Assessment Entry"
+
+"Session"
+→ "Week"
+
+Toolbar display format:
+
+"Class I | Math | Week: 12–18 May"
+
+Draft/session list format:
+
+"Week: 12–18 May | Due: 18 May | Status: Draft"
+
+========================================================
+PHASE 6 — SESSION LIST DISPLAY
+========================================================
+
+Update UI rendering:
+
+Display:
+- week range
+- due date
+- status badge
+
+Use normalized data so legacy sessions still show correctly.
+
+========================================================
+PHASE 7 — OVERDUE LOGIC (DETERMINISTIC)
+========================================================
+
+Add status indicator:
+
+if (today > dueDate && status !== "locked") {
+  session.isOverdue = true;
+}
+
+Display badge:
+"Overdue"
+
+DO NOT affect logic, only UI.
+
+========================================================
+PHASE 8 — DATA FLOW VALIDATION
+========================================================
+
+Ensure flow remains:
+
+UI → session save → Firestore → aggregation → student_profiles
+
+Test sequence:
+
+1. Create weekly session
+2. Enter marks
+3. Save draft
+4. Submit
+5. Review
+6. Lock
+
+VERIFY:
+- aggregation-engine triggers correctly
+- monthly_analytics updates
+- weak_students updates
+- student_profiles updates
+
+========================================================
+CONSTRAINTS
+========================================================
+
+DO NOT:
+- rewrite engines
+- change Firestore collections
+- remove existing fields
+- break legacy sessions
+- introduce heavy dependencies
+
+DO:
+- implement minimal safe changes
+- preserve performance
+- maintain clean separation of logic
+
+========================================================
+OUTPUT REQUIRED
+========================================================
+
+Provide:
+
+1. Updated session model implementation
+2. Updated UI for session setup
+3. Validation logic implementation
+4. Normalization function for legacy sessions
+5. Explanation of backward compatibility handling
+6. Confirmation that analytics pipeline remains intact
+
+========================================================
+CORE PRINCIPLE
+========================================================
+
+This is NOT a rebuild.
+
+This is a SAFE MIGRATION:
+Daily sessions → Weekly sessions
+
+System must:
+- continue working immediately
+- support old + new data simultaneously
+- require zero data reset
