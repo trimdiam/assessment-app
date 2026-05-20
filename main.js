@@ -24,7 +24,7 @@ import {
 } from './services/session-review-engine.js';
 import { aggregateByMonth, extractYearMonth, clearAggregationCache } from './services/aggregation-engine.js';
 import { getCurrentUser, isTeacher, isAdmin, isLoggedIn, resolveAuthSession } from './services/auth-service.js';
-import { generateDemoData, clearDemoData } from './services/demo-data-generator.js';
+import { generateDemoData, clearDemoData, generateWeeklyMathDemo } from './services/demo-data-generator.js';
 
 const classes = ['LKG', 'SKG', 'Class I', 'Class II'];
 
@@ -38,6 +38,9 @@ const state = {
 
   teacherName: '',
   date: getToday(),
+  weekStart: getWeekStart(),
+  weekEnd: getWeekEnd(),
+  dueDate: getWeekEnd(),
 
   mode: 'setup',
   adminView: 'sessions',
@@ -165,7 +168,12 @@ function renderLogin() {
     },
     onLogout: () => render(),
     onGenerateDemo: generateDemoData,
-    onClearDemo: clearDemoData
+    onClearDemo: clearDemoData,
+    onGenerateWeeklyMathDemo: async () => {
+      const n = await generateWeeklyMathDemo();
+      alert(`Weekly Maths demo loaded: ${n} sessions for Class I. Profiles updated.`);
+      syncSessionsFromFirestore().finally(() => render());
+    }
   }));
 }
 
@@ -246,12 +254,16 @@ function renderSetup() {
     selectedClass: state.selectedClass,
     selectedSubjectId: state.selectedSubject?.subject_id || '',
     teacherName: state.teacherName,
-    date: state.date,
+    weekStart: state.weekStart,
+    weekEnd: state.weekEnd,
+    dueDate: state.dueDate,
     savedSessions: getAllSessions().filter(s => s.session.teacher_name === state.teacherName),
     onClassChange: handleClassChange,
     onSubjectChange: handleSubjectChange,
     onTeacherNameChange: handleTeacherNameChange,
-    onDateChange: handleDateChange,
+    onWeekStartChange: handleWeekStartChange,
+    onWeekEndChange: handleWeekEndChange,
+    onDueDateChange: handleDueDateChange,
     onStartSession: handleStartSession,
     onResumeSession: handleResumeSession
   }));
@@ -687,6 +699,22 @@ function handleDateChange(date) {
   state.errorMessage = '';
 }
 
+function handleWeekStartChange(value) {
+  state.weekStart = value;
+  state.date = value;
+  state.errorMessage = '';
+}
+
+function handleWeekEndChange(value) {
+  state.weekEnd = value;
+  state.errorMessage = '';
+}
+
+function handleDueDateChange(value) {
+  state.dueDate = value;
+  state.errorMessage = '';
+}
+
 function handleStartSession(force = false) {
   state.errorMessage = '';
   state.infoMessage = '';
@@ -695,14 +723,17 @@ function handleStartSession(force = false) {
     teacher_name: state.teacherName,
     class: state.selectedClass,
     subject: state.selectedSubject,
-    date: state.date,
+    date: state.weekStart,
+    weekStart: state.weekStart,
+    weekEnd: state.weekEnd,
+    dueDate: state.dueDate,
     force
   });
 
   if (!result.ok) {
     if (result.duplicate && !force) {
       const confirmed = confirm(
-        `A draft session already exists for ${state.teacherName}, ${state.selectedClass}, ${state.selectedSubject.subject_name}, ${state.date}.\n\nOverwrite and continue?`
+        `A draft week already exists for ${state.teacherName}, ${state.selectedClass}, ${state.selectedSubject.subject_name}, Week: ${state.weekStart} to ${state.weekEnd}.\n\nOverwrite and continue?`
       );
       if (confirmed) {
         handleStartSession(true);
@@ -762,6 +793,9 @@ async function handleResumeSession(sessionId) {
   state.teacherName = sess.teacher_name;
   state.selectedClass = sess.class;
   state.date = sess.date;
+  state.weekStart = sess.weekStart || sess.date;
+  state.weekEnd = sess.weekEnd || sess.date;
+  state.dueDate = sess.dueDate || sess.date;
   state.subjects = getSubjectsForClass(state.allSubjects, sess.class);
   state.selectedSubject = state.subjects.find(s => s.subject_id === sess.subject_id) || null;
 
@@ -950,6 +984,22 @@ function getToday() {
   const month = String(now.getMonth() + 1).padStart(2, '0');
   const day = String(now.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
+}
+
+function getWeekStart() {
+  const d = new Date();
+  const day = d.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  d.setDate(d.getDate() + diff);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function getWeekEnd() {
+  const d = new Date();
+  const day = d.getDay();
+  const diff = day === 0 ? 0 : 7 - day;
+  d.setDate(d.getDate() + diff);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 function formatTime(dateObj) {

@@ -26,6 +26,22 @@ function sanitizeDocId(id) {
   return String(id).replace(/\//g, '_').replace(/\s+/g, '_');
 }
 
+// Backward-compat: older sessions lack weekStart/weekEnd/dueDate.
+// All reads must pass through this so legacy and new data are uniform.
+export function normalizeSession(session) {
+  if (!session) return session;
+  if (!session.weekStart) {
+    return {
+      ...session,
+      weekStart: session.date,
+      weekEnd: session.date,
+      dueDate: session.date,
+      sessionType: 'legacy'
+    };
+  }
+  return session;
+}
+
 export async function fetchSessions(filters = {}) {
   let q = collection(db, COLLECTION);
   const constraints = [];
@@ -37,7 +53,10 @@ export async function fetchSessions(filters = {}) {
   if (constraints.length > 0) q = query(q, ...constraints);
 
   const snapshot = await getDocs(q);
-  return snapshot.docs.map(d => d.data());
+  return snapshot.docs.map(d => {
+    const data = d.data();
+    return { ...data, session: normalizeSession(data.session) };
+  });
 }
 
 export async function persistSession(session, marks) {
@@ -56,7 +75,9 @@ export async function persistSession(session, marks) {
 export async function fetchSession(sessionId) {
   if (!sessionId) return null;
   const snap = await getDoc(doc(db, COLLECTION, sessionId));
-  return snap.exists() ? snap.data() : null;
+  if (!snap.exists()) return null;
+  const data = snap.data();
+  return { ...data, session: normalizeSession(data.session) };
 }
 
 // Sessions are never hard-deleted per security rules — use status transitions instead.

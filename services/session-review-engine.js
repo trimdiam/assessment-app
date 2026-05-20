@@ -83,26 +83,22 @@ export async function updateSessionStatus(sessionId, newStatus) {
   try {
     saveSession(stored.session, stored.marks);
 
-    // When a session is approved or locked, immediately recompute analytics
-    // for that class+month and persist to Firestore so the results are
-    // available on any device without waiting for the admin panel to open.
-    if (newStatus === SESSION_STATUS.REVIEWED || newStatus === SESSION_STATUS.LOCKED) {
-      const yearMonth = extractYearMonth(stored.session.date);
-      const className = stored.session.class;
-      clearAggregationCache();
-      aggregateByMonth(yearMonth, className, { force: true })
-        .then(agg => detectAndPersistWeakStudents(agg))
-        .then(() => loadStudentsForClass(className))
-        .then(students => {
-          // Rebuild + persist every student's profile snapshot so the
-          // main portal reflects the latest data without manual action.
-          students.forEach(s => {
-            getStudentProfile(s.student_id, className)
-              .catch(err => console.warn(`Profile snapshot failed for ${s.student_id}:`, err.message));
-          });
-        })
-        .catch(err => console.warn('Background analytics persist failed:', err.message));
-    }
+    // Every status change recomputes analytics + persists every student
+    // profile in this class so the portal always reflects current data,
+    // regardless of which state the session is moving into.
+    const yearMonth = extractYearMonth(stored.session.date);
+    const className = stored.session.class;
+    clearAggregationCache();
+    aggregateByMonth(yearMonth, className, { force: true })
+      .then(agg => detectAndPersistWeakStudents(agg))
+      .then(() => loadStudentsForClass(className))
+      .then(students => {
+        students.forEach(s => {
+          getStudentProfile(s.student_id, className)
+            .catch(err => console.warn(`Profile snapshot failed for ${s.student_id}:`, err.message));
+        });
+      })
+      .catch(err => console.warn('Background analytics persist failed:', err.message));
 
     return { ok: true, session: stored.session };
   } catch (error) {

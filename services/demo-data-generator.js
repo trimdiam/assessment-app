@@ -1,3 +1,5 @@
+import { getStudentProfile } from './student-profile-engine.js';
+
 const STORAGE_KEY = 'sfds_assessment_sessions';
 const TEACHER_NAME = 'Demo Teacher';
 
@@ -9,23 +11,12 @@ const MONTHS = [
 ];
 
 const subjects = [
-  { subject_id: 'ENG1', subject_name: 'English I',    criteria: ['ENG1_C1','ENG1_C2','ENG1_C3','ENG1_C4','ENG1_C5','ENG1_C6'] },
-  { subject_id: 'ENG2', subject_name: 'English II',   criteria: ['ENG2_C1','ENG2_C2','ENG2_C3','ENG2_C4','ENG2_C5'] },
-  { subject_id: 'MATH', subject_name: 'Mathematics',  criteria: ['MATH_C1','MATH_C2','MATH_C3','MATH_C4','MATH_C5'] },
-  { subject_id: 'SCI',  subject_name: 'Science',      criteria: ['SCI_C1','SCI_C2','SCI_C3','SCI_C4'] },
-  { subject_id: 'KHA',  subject_name: 'Khasi',        criteria: ['KHA_C1','KHA_C2','KHA_C3','KHA_C4','KHA_C5'] },
-  { subject_id: 'HIN',  subject_name: 'Hindi',        criteria: ['HIN_C1','HIN_C2','HIN_C3','HIN_C4','HIN_C5'] }
+  { subject_id: 'MATH', subject_name: 'Mathematics',  criteria: ['MATH_C1','MATH_C2','MATH_C3','MATH_C4','MATH_C5'] }
 ];
 
-// Per-subject trend overrides — makes trends visible and meaningful
-// 'rising' = improves each month, 'falling' = worsens, 'stable' = consistent
+// Maths rises steadily across months
 const SUBJECT_TRENDS = {
-  MATH: 'rising',   // Maths improves steadily
-  SCI:  'rising',   // Science also improving
-  ENG1: 'stable',   // English I stays consistent
-  ENG2: 'falling',  // English II declines slightly
-  KHA:  'stable',   // Khasi stable
-  HIN:  'rising'    // Hindi improving
+  MATH: 'rising'
 };
 
 const class1Students = [
@@ -132,7 +123,19 @@ function clearCache() {
   localStorage.removeItem('sfds_weak_student_cache');
 }
 
-export function generateDemoData() {
+// Rebuild Firestore student_profiles for every student in a class so the
+// portal reflects the current localStorage sessions (not stale Firestore data).
+async function rebuildProfiles(className, studentIds) {
+  for (const studentId of studentIds) {
+    try {
+      await getStudentProfile(studentId, className);
+    } catch (err) {
+      console.warn(`Profile rebuild skipped for ${studentId}:`, err.message);
+    }
+  }
+}
+
+export async function generateDemoData() {
   clearCache();
   const existing = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
   const sessions = [];
@@ -152,6 +155,11 @@ export function generateDemoData() {
   });
 
   localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+
+  // Overwrite Firestore student_profiles so the portal reflects the new data.
+  await rebuildProfiles('Class I',  class1Students);
+  await rebuildProfiles('Class II', class2Students);
+
   return sessions.length;
 }
 
@@ -160,4 +168,88 @@ export function clearDemoData() {
   const existing = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
   const filtered = existing.filter(s => !s.session.session_id.startsWith('demo_'));
   localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
+}
+
+// ── Weekly Maths Demo — Class I, 4 consecutive weeks ─────────────────────────
+// Statuses chosen to exercise every UI state:
+//   Week 1 (28 Apr–4 May)  → locked   (fully processed, shows in analytics)
+//   Week 2 (5–11 May)      → locked   (fully processed)
+//   Week 3 (12–18 May)     → draft    → OVERDUE  (due 18 May, today > 18 May)
+//   Week 4 (19–25 May)     → draft    → NOT overdue yet (due 25 May)
+//
+// Performance rises each week to produce a visible upward trend in analytics.
+
+const MATH_SUBJECT = {
+  subject_id:   'MATH',
+  subject_name: 'Mathematics',
+  criteria:     ['MATH_C1', 'MATH_C2', 'MATH_C3', 'MATH_C4', 'MATH_C5']
+};
+
+const WEEKLY_MATH_WEEKS = [
+  { weekStart: '2026-04-28', weekEnd: '2026-05-04', dueDate: '2026-05-04', status: 'locked',  bias: 0  },
+  { weekStart: '2026-05-05', weekEnd: '2026-05-11', dueDate: '2026-05-11', status: 'locked',  bias: 1  },
+  { weekStart: '2026-05-12', weekEnd: '2026-05-18', dueDate: '2026-05-18', status: 'draft',   bias: 2  },
+  { weekStart: '2026-05-19', weekEnd: '2026-05-25', dueDate: '2026-05-25', status: 'draft',   bias: 2  }
+];
+
+function generateWeeklyMarks(students, criteria, bias) {
+  const marks = {};
+  students.forEach((studentId, idx) => {
+    const tier = getTier(idx, students.length);
+    marks[studentId] = {};
+    criteria.forEach((criterionId, ci) => {
+      const isBottom = idx / students.length > 0.90;
+      const absentChance = isBottom && ci === 0 && bias === 0 ? 0.25 : 0;
+      if (Math.random() < absentChance) {
+        marks[studentId][criterionId] = { attendance: 'absent' };
+      } else {
+        marks[studentId][criterionId] = randomMark(tier, bias);
+      }
+    });
+  });
+  return marks;
+}
+
+export async function generateWeeklyMathDemo() {
+  clearCache();
+  const existing = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+  const sessions = [];
+
+  WEEKLY_MATH_WEEKS.forEach(({ weekStart, weekEnd, dueDate, status, bias }) => {
+    const sessionId = `demo_ClassI_MATH_${weekStart}`;
+    const entry = {
+      session: {
+        session_id:   sessionId,
+        teacher_name: TEACHER_NAME,
+        class:        'Class I',
+        subject_id:   MATH_SUBJECT.subject_id,
+        subject_name: MATH_SUBJECT.subject_name,
+        date:         weekStart,
+        weekStart,
+        weekEnd,
+        dueDate,
+        sessionType:  'weekly',
+        status,
+        created_at:   new Date().toISOString(),
+        updated_at:   new Date().toISOString()
+      },
+      marks:    generateWeeklyMarks(class1Students, MATH_SUBJECT.criteria, bias),
+      saved_at: new Date().toISOString()
+    };
+    sessions.push(entry);
+  });
+
+  const merged = [...existing];
+  sessions.forEach(sess => {
+    const idx = merged.findIndex(s => s.session.session_id === sess.session.session_id);
+    if (idx >= 0) merged[idx] = sess;
+    else merged.push(sess);
+  });
+
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+
+  // Overwrite Firestore student_profiles so the portal drops the old subjects.
+  await rebuildProfiles('Class I', class1Students);
+
+  return sessions.length;
 }

@@ -4,12 +4,16 @@ export function createSessionSetup({
   selectedClass = '',
   selectedSubjectId = '',
   teacherName = '',
-  date = getToday(),
+  weekStart = getWeekStart(),
+  weekEnd = getWeekEnd(),
+  dueDate = getWeekEnd(),
   savedSessions = [],
   onClassChange = () => {},
   onSubjectChange = () => {},
   onTeacherNameChange = () => {},
-  onDateChange = () => {},
+  onWeekStartChange = () => {},
+  onWeekEndChange = () => {},
+  onDueDateChange = () => {},
   onStartSession = () => {},
   onResumeSession = () => {}
 } = {}) {
@@ -26,14 +30,32 @@ export function createSessionSetup({
   teacherField.append(teacherInput);
   section.append(teacherField);
 
-  const dateField = createField('Date');
-  const dateInput = document.createElement('input');
-  dateInput.type = 'date';
-  dateInput.value = date;
-  dateInput.className = 'text-input';
-  dateInput.addEventListener('change', event => onDateChange(event.target.value));
-  dateField.append(dateInput);
-  section.append(dateField);
+  const weekStartField = createField('Week Start');
+  const weekStartInput = document.createElement('input');
+  weekStartInput.type = 'date';
+  weekStartInput.value = weekStart;
+  weekStartInput.className = 'text-input';
+  weekStartInput.addEventListener('change', event => onWeekStartChange(event.target.value));
+  weekStartField.append(weekStartInput);
+  section.append(weekStartField);
+
+  const weekEndField = createField('Week End');
+  const weekEndInput = document.createElement('input');
+  weekEndInput.type = 'date';
+  weekEndInput.value = weekEnd;
+  weekEndInput.className = 'text-input';
+  weekEndInput.addEventListener('change', event => onWeekEndChange(event.target.value));
+  weekEndField.append(weekEndInput);
+  section.append(weekEndField);
+
+  const dueDateField = createField('Due Date');
+  const dueDateInput = document.createElement('input');
+  dueDateInput.type = 'date';
+  dueDateInput.value = dueDate;
+  dueDateInput.className = 'text-input';
+  dueDateInput.addEventListener('change', event => onDueDateChange(event.target.value));
+  dueDateField.append(dueDateInput);
+  section.append(dueDateField);
 
   const classField = createField('Class');
   const classSelect = createSelect('Select class');
@@ -66,7 +88,7 @@ export function createSessionSetup({
   const startBtn = document.createElement('button');
   startBtn.type = 'button';
   startBtn.className = 'btn btn-primary';
-  startBtn.textContent = 'Start New Assessment';
+  startBtn.textContent = 'Start New Weekly Assessment Entry';
   startBtn.addEventListener('click', () => onStartSession());
   actionArea.append(startBtn);
   section.append(actionArea);
@@ -88,7 +110,7 @@ function createDraftSessions(savedSessions, onResumeSession) {
 
   const heading = document.createElement('h3');
   heading.className = 'draft-heading';
-  heading.textContent = 'Unfinished Sessions';
+  heading.textContent = 'Unfinished Weeks';
   container.append(heading);
 
   const list = document.createElement('div');
@@ -99,9 +121,12 @@ function createDraftSessions(savedSessions, onResumeSession) {
     item.type = 'button';
     item.className = 'draft-item';
     const sess = entry.session;
+    const weekInfo = sess.sessionType !== 'legacy' && sess.weekStart
+      ? `Week: ${formatWeekRange(sess.weekStart, sess.weekEnd)} | Due: ${formatDate(sess.dueDate)}`
+      : formatDate(sess.date);
     item.innerHTML = `
-      <span class="draft-info">${sess.subject_name} — ${sess.class} — ${formatDate(sess.date)}</span>
-      <span class="draft-teacher">${sess.teacher_name}</span>
+      <span class="draft-info">${sess.subject_name} — ${sess.class} — ${weekInfo}</span>
+      <span class="draft-meta">${sess.teacher_name} | Status: Draft</span>
     `;
     item.addEventListener('click', () => onResumeSession(sess.session_id));
     list.append(item);
@@ -139,9 +164,19 @@ function createMessage(text) {
   return message;
 }
 
-function getToday() {
-  const now = new Date();
-  return now.toISOString().split('T')[0];
+function formatWeekRange(weekStart, weekEnd) {
+  if (!weekStart || !weekEnd) return '';
+  const start = new Date(weekStart + 'T00:00:00');
+  const end = new Date(weekEnd + 'T00:00:00');
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const startDay = start.getDate();
+  const endDay = end.getDate();
+  const startMonth = months[start.getMonth()];
+  const endMonth = months[end.getMonth()];
+  if (startMonth === endMonth) {
+    return `${startDay}–${endDay} ${endMonth}`;
+  }
+  return `${startDay} ${startMonth}–${endDay} ${endMonth}`;
 }
 
 function formatDate(dateStr) {
@@ -149,4 +184,20 @@ function formatDate(dateStr) {
   const parts = dateStr.split('-');
   if (parts.length !== 3) return dateStr;
   return `${parts[2]}/${parts[1]}/${parts[0]}`;
+}
+
+function getWeekStart() {
+  const d = new Date();
+  const day = d.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  d.setDate(d.getDate() + diff);
+  return d.toISOString().split('T')[0];
+}
+
+function getWeekEnd() {
+  const d = new Date();
+  const day = d.getDay();
+  const diff = day === 0 ? 0 : 7 - day;
+  d.setDate(d.getDate() + diff);
+  return d.toISOString().split('T')[0];
 }

@@ -1,6 +1,6 @@
 import { login, logout, getCurrentUser } from '../services/auth-service.js';
 
-export function createLoginForm({ onLogin = () => {}, onLogout = () => {}, onGenerateDemo = () => {}, onClearDemo = () => {} } = {}) {
+export function createLoginForm({ onLogin = () => {}, onLogout = () => {}, onGenerateDemo = () => {}, onClearDemo = () => {}, onGenerateWeeklyMathDemo = () => {} } = {}) {
   const user = getCurrentUser();
 
   if (user) {
@@ -108,9 +108,16 @@ export function createLoginForm({ onLogin = () => {}, onLogout = () => {}, onGen
   genBtn.type = 'button';
   genBtn.className = 'btn btn-primary';
   genBtn.textContent = 'Load Demo Data';
-  genBtn.addEventListener('click', () => {
-    const count = onGenerateDemo();
-    alert(`${count} demo sessions generated. Refresh the page to see them.`);
+  genBtn.addEventListener('click', async () => {
+    genBtn.disabled = true;
+    genBtn.textContent = 'Building profiles…';
+    try {
+      const count = await onGenerateDemo();
+      alert(`${count} demo sessions generated. Student profiles updated.`);
+    } finally {
+      genBtn.disabled = false;
+      genBtn.textContent = 'Load Demo Data';
+    }
   });
 
   const clearBtn = document.createElement('button');
@@ -127,6 +134,32 @@ export function createLoginForm({ onLogin = () => {}, onLogout = () => {}, onGen
   demoActions.style.justifyContent = 'flex-start';
   demoActions.append(genBtn, clearBtn);
   demoPanel.append(demoActions);
+
+  const weeklyDivider = document.createElement('hr');
+  weeklyDivider.style.margin = '12px 0';
+  demoPanel.append(weeklyDivider);
+
+  const weeklyInfo = document.createElement('p');
+  weeklyInfo.className = 'empty-state';
+  weeklyInfo.style.fontSize = '0.85rem';
+  weeklyInfo.textContent = '4-week Maths demo for Class I — shows locked, overdue, and in-progress weekly sessions with a rising performance trend.';
+  demoPanel.append(weeklyInfo);
+
+  const weeklyBtn = document.createElement('button');
+  weeklyBtn.type = 'button';
+  weeklyBtn.className = 'btn btn-primary';
+  weeklyBtn.textContent = 'Load Weekly Maths Demo';
+  weeklyBtn.addEventListener('click', async () => {
+    weeklyBtn.disabled = true;
+    weeklyBtn.textContent = 'Building profiles…';
+    try {
+      await onGenerateWeeklyMathDemo();
+    } finally {
+      weeklyBtn.disabled = false;
+      weeklyBtn.textContent = 'Load Weekly Maths Demo';
+    }
+  });
+  demoPanel.append(weeklyBtn);
 
   container.append(demoPanel);
 

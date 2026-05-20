@@ -13,7 +13,7 @@ export function createSessionList({
 
   const heading = document.createElement('h2');
   heading.className = 'section-heading';
-  heading.textContent = 'Assessment Sessions';
+  heading.textContent = 'Weekly Assessments';
   section.append(heading);
 
   const filterBar = document.createElement('div');
@@ -44,7 +44,7 @@ export function createSessionList({
 
   const countLabel = document.createElement('div');
   countLabel.className = 'session-count';
-  countLabel.textContent = `${sessions.length} session(s) found`;
+  countLabel.textContent = `${sessions.length} week(s) found`;
   section.append(countLabel);
 
   if (sessions.length === 0) {
@@ -65,6 +65,9 @@ export function createSessionList({
 
 function createSessionRow(entry, onViewSession, onStatusChange) {
   const sess = entry.session;
+  const today = new Date().toISOString().split('T')[0];
+  const isOverdue = sess.dueDate && today > sess.dueDate && sess.status !== 'locked';
+
   const row = document.createElement('div');
   row.className = 'session-row';
 
@@ -77,13 +80,28 @@ function createSessionRow(entry, onViewSession, onStatusChange) {
 
   const meta = document.createElement('div');
   meta.className = 'session-row-meta';
-  meta.textContent = `${sess.teacher_name} • ${formatDate(sess.date)}`;
+  if (sess.sessionType !== 'legacy' && sess.weekStart) {
+    meta.textContent = `Week: ${formatWeekRange(sess.weekStart, sess.weekEnd)} | Due: ${formatDate(sess.dueDate)} | ${sess.teacher_name}`;
+  } else {
+    meta.textContent = `${sess.teacher_name} • ${formatDate(sess.date)}`;
+  }
 
   info.append(title, meta);
+
+  const badgesDiv = document.createElement('div');
+  badgesDiv.className = 'session-badges';
 
   const badge = document.createElement('span');
   badge.className = `status-badge status-${sess.status}`;
   badge.textContent = capitalize(sess.status);
+  badgesDiv.append(badge);
+
+  if (isOverdue) {
+    const overdueBadge = document.createElement('span');
+    overdueBadge.className = 'status-badge status-overdue';
+    overdueBadge.textContent = 'Overdue';
+    badgesDiv.append(overdueBadge);
+  }
 
   const actions = document.createElement('div');
   actions.className = 'session-row-actions';
@@ -132,8 +150,23 @@ function createSessionRow(entry, onViewSession, onStatusChange) {
     actions.append(reopenBtn);
   }
 
-  row.append(info, badge, actions);
+  row.append(info, badgesDiv, actions);
   return row;
+}
+
+function formatWeekRange(weekStart, weekEnd) {
+  if (!weekStart || !weekEnd) return '';
+  const start = new Date(weekStart + 'T00:00:00');
+  const end = new Date(weekEnd + 'T00:00:00');
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const startDay = start.getDate();
+  const endDay = end.getDate();
+  const startMonth = months[start.getMonth()];
+  const endMonth = months[end.getMonth()];
+  if (startMonth === endMonth) {
+    return `${startDay}–${endDay} ${endMonth}`;
+  }
+  return `${startDay} ${startMonth}–${endDay} ${endMonth}`;
 }
 
 function createTextInput(placeholder, value) {
