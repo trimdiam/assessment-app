@@ -1,480 +1,720 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Report Card — Alvinson Mawrie</title>
-  <style>
-    @page { size: legal landscape; margin: 6mm 8mm; }
+<meta charset="UTF-8" />
+<title>Annual Progress Report — St. Francis De Sales School, Laitkor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" />
+<style>
+  :root {
+    --cd-900: #2B270A;
+    --cd-700: #4E471A;
+    --cd-500: #7A7030;
+    --cd-400: #A09448;
+    --cd-200: #CEBF7A;
+    --cd-100: #E0D49A;
+    --cd-050: #F0EBCA;
+    --cream:   #FFFCF0;
+    --cream-2: #FAF4DC;
+    --cream-3: #FAF8F0;
+    --edge:     #0C0C0C;
+    --edge-mid: #4A4530;
+    --txt:     #18140A;
+    --txt-mid: #4A4228;
+    --txt-dim: #6E6745;
+    --adv-c: #1D6A3A;  --adv-bg: #E4F4E8;
+    --prof-c:#154360;  --prof-bg:#E1ECF6;
+    --dev-c: #784212;  --dev-bg: #FCE9CE;
+    --beg-c: #6E2C00;  --beg-bg: #F8DCBE;
+    --ny-c:  #7B241C;  --ny-bg:  #FADBD8;
+    --pass:    #145A32;  --pass-bg: #D5F5E3;
+    --font-sans: 'Inter', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+  }
 
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-    body {
-      font-family: 'Arial Narrow', Arial, sans-serif;
-      font-size: 8px;
-      color: #1a1008;
-      background: #ccc;
-    }
+  html, body {
+    font-family: var(--font-sans);
+    color: var(--txt);
+    background: #4a4a4a;
+    -webkit-font-smoothing: antialiased;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
 
-    /* ── Screen controls ── */
-    .ctrl-bar {
-      background: #2C1F0E; color: #fff;
-      padding: 8px 16px; display: flex; align-items: center; gap: 10px;
-    }
-    .ctrl-bar h1 { font-size: 12px; flex: 1; }
-    .btn { padding: 6px 14px; border: none; border-radius: 5px; font-size: 12px; font-weight: 700; cursor: pointer; }
-    .btn-print  { background: #8B6F47; color: #fff; }
-    .btn-erase  { background: #cc3333; color: #fff; }
-    .btn-restore{ background: #8B6F47; color: #fff; margin-top: 8px; }
-    .erased-msg {
-      display: none; text-align: center; padding: 32px;
-      background: #fff3cd; color: #856404; border: 1px solid #ffc107;
-      border-radius: 8px; margin: 24px auto; max-width: 400px; font-size: 13px;
-    }
-    @media print { .ctrl-bar { display: none !important; } body { background: #fff; } }
+  body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0;
+    min-height: 100vh;
+  }
 
-    /* ── Legal landscape card ── */
-    .card {
-      width: 340mm;
-      min-height: 200mm;
-      background: #fff;
-      margin: 10px auto;
-      padding: 4mm 5mm;
-      display: flex;
-      flex-direction: column;
-      gap: 2mm;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.25);
-    }
-    @media print { .card { margin: 0; box-shadow: none; width: 100%; } }
+  /* ── Screen controls ── */
+  .ctrl-bar {
+    width: 100%;
+    background: #18140A;
+    color: #fff;
+    padding: 10px 24px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+  .ctrl-bar h1 { font-size: 13px; flex: 1; font-weight: 600; letter-spacing: 0.3px; }
+  .btn { padding: 7px 16px; border: none; border-radius: 5px; font-size: 12px; font-weight: 700; cursor: pointer; font-family: var(--font-sans); }
+  .btn-print   { background: #A09448; color: #fff; }
+  .btn-erase   { background: #7B241C; color: #fff; }
+  .btn-restore { background: #A09448; color: #fff; margin-top: 10px; }
 
-    /* ── Header ── */
-    .hdr {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      border-bottom: 2px solid #8B6F47;
-      padding-bottom: 2.5mm;
-    }
-    .crest {
-      font-size: 18px; font-weight: 900; color: #8B6F47;
-      border: 2px solid #8B6F47; border-radius: 4px;
-      padding: 1px 5px; letter-spacing: 2px; line-height: 1.2;
-    }
-    .hdr-school { flex: 1; }
-    .hdr-school .sname { font-size: 12px; font-weight: 800; color: #2C1F0E; letter-spacing: 0.5px; }
-    .hdr-school .sloc  { font-size: 7px; color: #8B6F47; }
-    .hdr-doc { text-align: right; }
-    .hdr-doc .dtitle { font-size: 9.5px; font-weight: 700; color: #2C1F0E; }
-    .hdr-doc .dsub   { font-size: 7px; color: #5A4A35; margin-top: 1px; }
+  .erased-msg {
+    display: none;
+    text-align: center;
+    padding: 40px;
+    background: #FAF4DC;
+    color: #4E471A;
+    border: 1px solid #CEBF7A;
+    border-radius: 8px;
+    margin: 32px auto;
+    max-width: 420px;
+    font-size: 14px;
+    font-family: var(--font-sans);
+  }
 
-    /* ── Meta strip ── */
-    .meta {
-      display: flex;
-      border: 1px solid #D6C3A3;
-      border-radius: 3px;
-      overflow: hidden;
-      background: #f5efe4;
-      font-size: 7.5px;
-    }
-    .mc { flex: 1; padding: 2.5px 6px; border-right: 1px solid #D6C3A3; }
-    .mc:last-child { border-right: none; }
-    .mc .ml { display: block; font-size: 6px; font-weight: 700; color: #8B6F47; text-transform: uppercase; letter-spacing: 0.4px; }
-    .mc .mv { font-weight: 700; color: #2C1F0E; font-size: 8px; }
+  @media print {
+    .ctrl-bar { display: none !important; }
+    html, body { background: #fff !important; padding: 0; display: block; }
+  }
 
-    /* ── Main body: table + remarks side by side ── */
-    .body-row {
-      display: flex;
-      gap: 3mm;
-      flex: 1;
-    }
+  /* ── Card wrapper (screen only) ── */
+  .card-wrap {
+    padding: 28px 18px;
+    display: flex;
+    justify-content: center;
+  }
 
-    /* ── Assessment table section ── */
-    .tbl-wrap { flex: 1; display: flex; flex-direction: column; }
+  /* ════════════════════════════════════════════════════
+     CARD SHELL — Legal Landscape
+     ════════════════════════════════════════════════════ */
+  .rc {
+    width: 14in;
+    height: 8.5in;
+    background: var(--cream);
+    border: 3px solid var(--edge);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: 0 12px 36px rgba(0,0,0,0.55);
+    color: var(--txt);
+  }
 
-    /* Column header spans */
-    .col-hdr-bar {
-      display: grid;
-      grid-template-columns: 44mm 10mm 13mm 10mm 13mm 12mm;
-      background: #2C1F0E;
-      color: #fff;
-      font-size: 6.5px;
-      font-weight: 700;
-      border-radius: 3px 3px 0 0;
-      text-align: center;
-    }
-    .col-hdr-bar > div {
-      padding: 2px 3px;
-      border-right: 1px solid rgba(255,255,255,0.15);
-    }
-    .col-hdr-bar > div:last-child { border-right: none; }
-    .chb-criterion { text-align: left !important; }
-    .chb-hy1 { grid-column: span 2; background: rgba(139,111,71,0.55); }
-    .chb-hy2 { grid-column: span 2; background: rgba(26,95,180,0.35); }
-    .chb-ann { background: rgba(10,110,58,0.35); }
+  /* ── HEADER ── */
+  .hdr {
+    background: var(--cd-900);
+    border-bottom: 2px solid var(--edge);
+    display: flex;
+    align-items: center;
+    padding: 7px 22px;
+    gap: 16px;
+    color: var(--cream);
+    flex-shrink: 0;
+  }
+  .crest {
+    width: 52px; height: 52px;
+    border-radius: 50%;
+    background: var(--cream);
+    border: 1.5px solid var(--cd-400);
+    padding: 2px;
+    object-fit: contain;
+    flex-shrink: 0;
+  }
+  .crest-placeholder {
+    width: 52px; height: 52px;
+    border-radius: 50%;
+    background: var(--cream);
+    border: 1.5px solid var(--cd-400);
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 9px;
+    font-weight: 800;
+    color: var(--cd-700);
+    letter-spacing: 0.5px;
+    text-align: center;
+    line-height: 1.2;
+  }
+  .hdr-school {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    line-height: 1.1;
+  }
+  .hdr-name {
+    font-size: 22px;
+    font-weight: 900;
+    letter-spacing: 1.4px;
+    color: var(--cream);
+    text-transform: uppercase;
+  }
+  .hdr-loc {
+    font-size: 10.5px;
+    font-weight: 500;
+    color: var(--cd-100);
+    letter-spacing: 0.6px;
+  }
+  .hdr-meta {
+    font-size: 9px;
+    font-weight: 500;
+    color: var(--cd-200);
+    letter-spacing: 0.4px;
+    margin-top: 2px;
+  }
+  .hdr-right {
+    text-align: right;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    line-height: 1.15;
+  }
+  .hdr-title {
+    font-size: 14px;
+    font-weight: 800;
+    letter-spacing: 2.2px;
+    color: var(--cream);
+    text-transform: uppercase;
+  }
+  .hdr-year {
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--cd-100);
+    letter-spacing: 0.8px;
+  }
+  .hdr-class {
+    font-size: 9px;
+    font-weight: 600;
+    color: var(--cd-200);
+    letter-spacing: 1.4px;
+    text-transform: uppercase;
+    margin-top: 2px;
+  }
 
-    /* Sub-column labels */
-    .col-sub-bar {
-      display: grid;
-      grid-template-columns: 44mm 10mm 13mm 10mm 13mm 12mm;
-      background: #f0e8dc;
-      font-size: 6px;
-      font-weight: 700;
-      color: #5A4A35;
-      text-align: center;
-      border-left: 1px solid #D6C3A3;
-      border-right: 1px solid #D6C3A3;
-    }
-    .col-sub-bar > div { padding: 1.5px 3px; border-right: 1px solid #D6C3A3; }
-    .col-sub-bar > div:last-child { border-right: none; }
+  /* ── STUDENT INFO STRIP ── */
+  .info-strip {
+    display: grid;
+    grid-template-columns: 1.6fr 0.9fr 0.7fr 1fr 1fr 1fr 1fr;
+    border-bottom: 2px solid var(--edge);
+    background: var(--cream-3);
+    flex-shrink: 0;
+  }
+  .info-cell {
+    padding: 5px 12px 6px;
+    border-right: 1px solid var(--cd-200);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .info-cell:last-child { border-right: none; }
+  .info-eyebrow {
+    font-size: 7.5px;
+    font-weight: 700;
+    letter-spacing: 1.4px;
+    color: var(--cd-500);
+    text-transform: uppercase;
+  }
+  .info-value {
+    font-size: 11.5px;
+    font-weight: 700;
+    color: var(--txt);
+    letter-spacing: 0.2px;
+  }
+  .info-value .slash {
+    color: var(--cd-400);
+    margin: 0 3px;
+    font-weight: 500;
+  }
 
-    /* Assessment table */
-    .atbl {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 7.5px;
-      border: 1px solid #D6C3A3;
-      border-top: none;
-      table-layout: fixed;
-    }
-    .atbl td {
-      padding: 2px 4px;
-      border-bottom: 1px solid #ede4d6;
-      border-right: 1px solid #e8ddd0;
-      text-align: center;
-      overflow: hidden;
-      white-space: nowrap;
-    }
-    .atbl td:last-child { border-right: none; }
-    .atbl tr:last-child td { border-bottom: none; }
+  /* ── BODY ── */
+  .body {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 4.2in;
+    min-height: 0;
+  }
 
-    /* Column widths */
-    .tc  { width: 44mm; text-align: left !important; padding-left: 5px !important; overflow: hidden; text-overflow: ellipsis; }
-    .ta  { width: 10mm; font-size: 7px; color: #5A4A35; }
-    .tg  { width: 13mm; }
-    .tan { width: 12mm; }
+  /* ── MARKS TABLE ── */
+  .marks {
+    border-right: 2px solid var(--edge);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  table.marks-tbl {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+    font-size: 10px;
+  }
+  .marks-tbl thead .term-head th {
+    background: var(--cd-700);
+    color: var(--cream);
+    font-size: 8.5px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    padding: 4px 8px;
+    border-right: 1px solid var(--cd-400);
+    border-bottom: 1px solid var(--edge);
+    text-align: center;
+  }
+  .marks-tbl thead .term-head th:first-child {
+    background: var(--cd-900);
+    text-align: left;
+  }
+  .marks-tbl thead .term-head th:last-child { border-right: none; }
+  .marks-tbl thead .col-head th {
+    background: var(--cd-200);
+    color: var(--cd-900);
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    padding: 2.5px 6px;
+    border-right: 1px solid var(--cd-400);
+    border-bottom: 1.5px solid var(--edge);
+    text-align: center;
+  }
+  .marks-tbl thead .col-head th.col-sub {
+    background: var(--cd-100);
+    text-align: left;
+    padding-left: 10px;
+  }
+  .marks-tbl thead .col-head th:last-child { border-right: none; }
+  .marks-tbl td {
+    padding: 1px 8px;
+    border-bottom: 1px solid var(--cd-100);
+    border-right: 1px solid var(--cd-100);
+    font-size: 10px;
+    text-align: center;
+    color: var(--txt);
+    background: var(--cream);
+    line-height: 1.1;
+  }
+  .marks-tbl td:last-child { border-right: none; }
+  .marks-tbl td.subj-col {
+    text-align: left;
+    padding-left: 18px;
+    color: var(--txt-mid);
+  }
+  .marks-tbl tr.subj-head td {
+    background: var(--cream-2);
+    border-bottom: 1px solid var(--cd-200);
+    border-top: 1px solid var(--cd-200);
+    font-weight: 800;
+    color: var(--cd-900);
+    font-size: 10px;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    padding: 1px 8px;
+  }
+  .marks-tbl tr.subj-head td.subj-col { padding-left: 10px; }
 
-    /* Subject header rows */
-    .sr td {
-      background: #f0e8dc;
-      font-weight: 800;
-      font-size: 7.5px;
-      color: #2C1F0E;
-      padding: 2.5px 4px;
-    }
-    .sr .tc { padding-left: 5px !important; letter-spacing: 0.3px; text-transform: uppercase; font-size: 7px; }
+  /* Achievement pill */
+  .ach {
+    display: inline-block;
+    font-size: 9px;
+    font-weight: 800;
+    padding: 0.5px 7px;
+    border-radius: 3px;
+    letter-spacing: 0.4px;
+    line-height: 1.3;
+    min-width: 36px;
+    text-align: center;
+  }
+  .ach.adv  { color: var(--adv-c);  background: var(--adv-bg);  }
+  .ach.prof { color: var(--prof-c); background: var(--prof-bg); }
+  .ach.dev  { color: var(--dev-c);  background: var(--dev-bg);  }
+  .ach.beg  { color: var(--beg-c);  background: var(--beg-bg);  }
+  .ach.ny   { color: var(--ny-c);   background: var(--ny-bg);   }
 
-    /* Alternate row tint */
-    .atbl tbody tr:not(.sr):nth-child(even) td { background: #fdfaf6; }
+  .score {
+    font-weight: 700;
+    color: var(--txt);
+    font-variant-numeric: tabular-nums;
+  }
 
-    /* Indent criteria */
-    .cr-name { padding-left: 10px !important; color: #2C1F0E; }
+  /* ── RIGHT SUMMARY PANELS ── */
+  .summary {
+    display: flex;
+    flex-direction: column;
+    background: var(--cream);
+  }
+  .panel + .panel { border-top: 2px solid var(--edge); }
+  .panel { display: flex; flex-direction: column; }
+  .panel-bar {
+    background: var(--cd-700);
+    color: var(--cream);
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    padding: 5px 12px;
+    border-bottom: 1px solid var(--edge);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .panel-bar::before { content: '▸'; color: var(--cd-200); font-size: 10px; }
+  .panel-bar.annual { background: var(--cd-900); }
+  .panel-body {
+    padding: 7px 12px 9px;
+    background: var(--cream);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex: 1;
+  }
+  .stat-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+  .stat {
+    background: var(--cd-050);
+    border: 1px solid var(--cd-200);
+    border-radius: 3px;
+    padding: 5px 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .stat .eyebrow {
+    font-size: 7.5px;
+    font-weight: 700;
+    letter-spacing: 1.2px;
+    color: var(--cd-500);
+    text-transform: uppercase;
+  }
+  .stat .value {
+    font-size: 12px;
+    font-weight: 800;
+    color: var(--txt);
+    letter-spacing: 0.2px;
+    line-height: 1.15;
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+  }
+  .stat .value .ach { font-size: 9.5px; padding: 1.5px 6px; }
+  .arrow { color: var(--adv-c); font-weight: 800; }
+  .arrow.dn { color: var(--ny-c); }
+  .remark {
+    font-size: 9.5px;
+    font-style: italic;
+    color: var(--cd-900);
+    line-height: 1.5;
+    border-top: 1px dashed var(--cd-200);
+    padding-top: 6px;
+    text-wrap: pretty;
+  }
+  .remark::before { content: '\201C'; color: var(--cd-400); font-weight: 800; font-size: 14px; line-height: 0; vertical-align: -2px; margin-right: 1px; }
+  .remark::after  { content: '\201D'; color: var(--cd-400); font-weight: 800; font-size: 14px; line-height: 0; vertical-align: -4px; margin-left: 1px; }
 
-    /* ── Grade badges ── */
-    .g {
-      display: inline-block; padding: 1px 4px;
-      border-radius: 8px; font-size: 6.5px; font-weight: 800; white-space: nowrap;
-    }
-    .adv  { background: #d4f5e2; color: #0a6e3a; }
-    .prof { background: #d6eaf8; color: #1a5fb4; }
-    .dev  { background: #fef3d0; color: #b87600; }
-    .beg  { background: #fde8d8; color: #cc5500; }
-    .ny   { background: #f0f0f0; color: #666; }
+  /* ── FOOTER ── */
+  .footer {
+    border-top: 2px solid var(--edge);
+    background: var(--cream-3);
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .scale-row {
+    padding: 6px 22px 7px;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    border-bottom: 1px solid var(--cd-200);
+  }
+  .scale-label {
+    font-size: 8.5px;
+    font-weight: 800;
+    color: var(--cd-700);
+    letter-spacing: 1.4px;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .scale-items { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .scale-item { display: inline-flex; align-items: baseline; gap: 5px; font-size: 9.5px; color: var(--txt-mid); }
+  .scale-item .ach { font-size: 8.5px; padding: 1px 6px; }
+  .scale-item .name { font-weight: 700; color: var(--txt); }
+  .scale-item .range { color: var(--txt-dim); font-variant-numeric: tabular-nums; }
+  .sign-row {
+    padding: 22px 32px 20px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 48px;
+  }
+  .sign { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 8px; min-height: 36px; }
+  .sign-line { width: 100%; border-top: 1px solid var(--edge); }
+  .sign-label { font-size: 9px; font-weight: 700; color: var(--cd-700); text-transform: uppercase; letter-spacing: 1.4px; }
+  .disclaimer { padding: 0 22px 8px; font-size: 7.5px; color: var(--txt-dim); letter-spacing: 0.4px; text-align: center; font-weight: 500; }
 
-    /* ── Right remarks panel ── */
-    .remarks-panel {
-      width: 88mm;
-      display: flex;
-      flex-direction: column;
-      gap: 2mm;
-    }
-
-    .rbox {
-      flex: 1;
-      border: 1px solid #D6C3A3;
-      border-radius: 4px;
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-    }
-    .rbox-head {
-      padding: 3px 7px;
-      font-size: 6.5px;
-      font-weight: 800;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      color: #fff;
-    }
-    .rbox-hy1 .rbox-head { background: #6B5030; }
-    .rbox-hy2 .rbox-head { background: #1a5fb4; }
-    .rbox-ann .rbox-head { background: #0a6e3a; }
-
-    .rbox-stats {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 0;
-      border-bottom: 1px solid #D6C3A3;
-      font-size: 6.5px;
-    }
-    .rs { padding: 2px 6px; border-right: 1px solid #D6C3A3; color: #2C1F0E; }
-    .rs:nth-child(even) { border-right: none; }
-    .rs .rl { display: block; font-size: 6px; color: #8B6F47; font-weight: 700; }
-    .rs .rv { font-weight: 700; }
-
-    .rbox-remark {
-      flex: 1;
-      padding: 4px 7px;
-      font-size: 7px;
-      font-style: italic;
-      color: #2C1F0E;
-      line-height: 1.6;
-      background: #fdf9f4;
-    }
-    .rbox-ann .rbox-remark { background: #f0fff8; }
-
-    /* ── Footer ── */
-    .footer {
-      display: flex;
-      align-items: flex-end;
-      justify-content: space-between;
-      border-top: 1px dashed #D6C3A3;
-      padding-top: 2mm;
-    }
-    .legend { display: flex; gap: 5px; align-items: center; flex-wrap: wrap; }
-    .legend span { font-size: 6px; color: #5A4A35; display: flex; align-items: center; gap: 2px; }
-    .legend strong { font-size: 6px; color: #5A4A35; margin-right: 2px; }
-    .sigs { display: flex; gap: 14mm; }
-    .sig { text-align: center; }
-    .sig-line { border-top: 1px solid #888; margin-top: 7mm; padding-top: 2px; font-size: 6.5px; color: #5A4A35; white-space: nowrap; }
-  </style>
+  /* ── Print ── */
+  @page { size: legal landscape; margin: 0; }
+  @media print {
+    html, body { background: #fff !important; padding: 0; display: block; }
+    .ctrl-bar { display: none !important; }
+    .card-wrap { padding: 0; }
+    .rc { box-shadow: none !important; width: 14in; height: 8.5in; }
+  }
+</style>
 </head>
 <body>
 
 <div class="ctrl-bar" id="ctrlBar">
-  <h1>📋 Legal Landscape Demo — Alvinson Mawrie, Class I (Both Terms + Annual on one page)</h1>
+  <h1>Annual Progress Report Demo — Alvinson Mawrie, Class I</h1>
   <button class="btn btn-print" onclick="window.print()">🖨 Print / Save as PDF</button>
   <button class="btn btn-erase" onclick="eraseCard()">🗑 Erase Demo</button>
 </div>
+
 <div class="erased-msg" id="erasedMsg">
-  <strong>Demo card erased.</strong><br>Report card removed from view.<br><br>
+  <strong>Demo card erased.</strong><br>The report card has been removed from view.<br><br>
   <button class="btn btn-restore" onclick="restoreCard()">↩ Restore Demo</button>
 </div>
 
-<div class="card" id="cardWrap">
+<div class="card-wrap" id="cardWrap">
+<main class="rc">
 
-  <!-- Header -->
-  <div class="hdr">
-    <div class="crest">SFDS</div>
+  <!-- HEADER -->
+  <header class="hdr">
+    <div class="crest-placeholder">SFDS<br>CREST</div>
     <div class="hdr-school">
-      <div class="sname">ST. FRANCIS DE SALES SCHOOL</div>
-      <div class="sloc">Laitkor, Shillong — Meghalaya</div>
+      <div class="hdr-name">St. Francis De Sales School</div>
+      <div class="hdr-loc">Laitkor, Shillong — Meghalaya · Affiliated to CBSE</div>
+      <div class="hdr-meta">Ph: 9612946550</div>
     </div>
-    <div class="hdr-doc">
-      <div class="dtitle">ANNUAL PROGRESS REPORT</div>
-      <div class="dsub">Academic Year 2025 – 2026</div>
+    <div class="hdr-right">
+      <div class="hdr-title">Annual Progress Report</div>
+      <div class="hdr-year">Academic Year 2025 – 2026</div>
+      <div class="hdr-class">Primary Section · Class I</div>
     </div>
-  </div>
+  </header>
 
-  <!-- Meta strip -->
-  <div class="meta">
-    <div class="mc"><span class="ml">Student Name</span><span class="mv">ALVINSON MAWRIE</span></div>
-    <div class="mc"><span class="ml">Class</span><span class="mv">Class I</span></div>
-    <div class="mc"><span class="ml">Roll No.</span><span class="mv">01</span></div>
-    <div class="mc"><span class="ml">Student ID</span><span class="mv">SFS260101</span></div>
-    <div class="mc"><span class="ml">HY1 Attendance</span><span class="mv">___ / ___ days</span></div>
-    <div class="mc"><span class="ml">HY2 Attendance</span><span class="mv">___ / ___ days</span></div>
-    <div class="mc"><span class="ml">Total Attendance</span><span class="mv">___ / ___ days</span></div>
-  </div>
+  <!-- STUDENT INFO STRIP -->
+  <section class="info-strip">
+    <div class="info-cell">
+      <div class="info-eyebrow">Student Name</div>
+      <div class="info-value">Alvinson Mawrie</div>
+    </div>
+    <div class="info-cell">
+      <div class="info-eyebrow">Class &amp; Section</div>
+      <div class="info-value">I &nbsp;—&nbsp; A</div>
+    </div>
+    <div class="info-cell">
+      <div class="info-eyebrow">Roll No.</div>
+      <div class="info-value">01</div>
+    </div>
+    <div class="info-cell">
+      <div class="info-eyebrow">Student ID</div>
+      <div class="info-value">SFS260101</div>
+    </div>
+    <div class="info-cell">
+      <div class="info-eyebrow">HY1 Attendance</div>
+      <div class="info-value">112<span class="slash">/</span>118 <span style="font-weight:500;color:var(--txt-dim);font-size:9.5px">days</span></div>
+    </div>
+    <div class="info-cell">
+      <div class="info-eyebrow">HY2 Attendance</div>
+      <div class="info-value">108<span class="slash">/</span>114 <span style="font-weight:500;color:var(--txt-dim);font-size:9.5px">days</span></div>
+    </div>
+    <div class="info-cell">
+      <div class="info-eyebrow">Total Attendance</div>
+      <div class="info-value">220<span class="slash">/</span>232 <span style="font-weight:500;color:var(--txt-dim);font-size:9.5px">days</span></div>
+    </div>
+  </section>
 
-  <!-- Body: table + remarks -->
-  <div class="body-row">
+  <!-- BODY -->
+  <div class="body">
 
-    <!-- Assessment table -->
-    <div class="tbl-wrap">
-
-      <!-- Column span headers -->
-      <div class="col-hdr-bar">
-        <div class="chb-criterion">Subject / Criterion</div>
-        <div class="chb-hy1">FIRST HALF-YEARLY</div>
-        <div class="chb-hy2">SECOND HALF-YEARLY</div>
-        <div class="chb-ann">ANNUAL</div>
-      </div>
-
-      <!-- Sub-column labels -->
-      <div class="col-sub-bar">
-        <div style="text-align:left"></div>
-        <div>Score</div><div>Grade</div>
-        <div>Score</div><div>Grade</div>
-        <div>Grade</div>
-      </div>
-
-      <!-- Table -->
-      <table class="atbl">
+    <!-- MARKS TABLE -->
+    <section class="marks">
+      <table class="marks-tbl">
         <colgroup>
-          <col style="width:44mm">
-          <col style="width:10mm">
-          <col style="width:13mm">
-          <col style="width:10mm">
-          <col style="width:13mm">
-          <col style="width:12mm">
+          <col style="width:32%" />
+          <col style="width:13%" />
+          <col style="width:13%" />
+          <col style="width:13%" />
+          <col style="width:13%" />
+          <col style="width:16%" />
         </colgroup>
+        <thead>
+          <tr class="term-head">
+            <th rowspan="2">Subject &amp; Criterion</th>
+            <th colspan="2">First Half-Yearly</th>
+            <th colspan="2">Second Half-Yearly</th>
+            <th rowspan="2">Annual<br /><span style="font-weight:500;letter-spacing:0.5px;font-size:7.5px;color:var(--cd-200)">overall</span></th>
+          </tr>
+          <tr class="col-head">
+            <th>Score</th><th>Level</th>
+            <th>Score</th><th>Level</th>
+          </tr>
+        </thead>
         <tbody>
+          <tr class="subj-head"><td class="subj-col" colspan="3">Mathematics</td><td></td><td></td><td><span class="ach adv">Adv</span></td></tr>
+          <tr><td class="subj-col">Number Recognition</td><td class="score">4.8</td><td><span class="ach adv">Adv</span></td><td class="score">4.9</td><td><span class="ach adv">Adv</span></td><td><span class="ach adv">Adv</span></td></tr>
+          <tr><td class="subj-col">Counting &amp; Number Sense</td><td class="score">4.6</td><td><span class="ach adv">Adv</span></td><td class="score">4.7</td><td><span class="ach adv">Adv</span></td><td><span class="ach adv">Adv</span></td></tr>
+          <tr><td class="subj-col">Shapes &amp; Space</td><td class="score">4.5</td><td><span class="ach adv">Adv</span></td><td class="score">4.6</td><td><span class="ach adv">Adv</span></td><td><span class="ach adv">Adv</span></td></tr>
+          <tr><td class="subj-col">Patterns</td><td class="score">4.2</td><td><span class="ach prof">Prof</span></td><td class="score">4.5</td><td><span class="ach adv">Adv</span></td><td><span class="ach adv">Adv</span></td></tr>
+          <tr><td class="subj-col">Activity Participation</td><td class="score">4.8</td><td><span class="ach adv">Adv</span></td><td class="score">5.0</td><td><span class="ach adv">Adv</span></td><td><span class="ach adv">Adv</span></td></tr>
 
-          <!-- MATHEMATICS -->
-          <tr class="sr">
-            <td class="tc">Mathematics</td>
-            <td class="ta"></td><td class="tg"><span class="g adv">Adv</span></td>
-            <td class="ta"></td><td class="tg"><span class="g adv">Adv</span></td>
-            <td class="tan"><span class="g adv">Adv</span></td>
-          </tr>
-          <tr><td class="tc cr-name">Number Recognition</td><td class="ta">4.8</td><td class="tg"><span class="g adv">Adv</span></td><td class="ta">4.9</td><td class="tg"><span class="g adv">Adv</span></td><td class="tan"><span class="g adv">Adv</span></td></tr>
-          <tr><td class="tc cr-name">Counting</td><td class="ta">4.6</td><td class="tg"><span class="g adv">Adv</span></td><td class="ta">4.7</td><td class="tg"><span class="g adv">Adv</span></td><td class="tan"><span class="g adv">Adv</span></td></tr>
-          <tr><td class="tc cr-name">Shapes</td><td class="ta">4.5</td><td class="tg"><span class="g adv">Adv</span></td><td class="ta">4.6</td><td class="tg"><span class="g adv">Adv</span></td><td class="tan"><span class="g adv">Adv</span></td></tr>
-          <tr><td class="tc cr-name">Patterns</td><td class="ta">4.2</td><td class="tg"><span class="g prof">Prof</span></td><td class="ta">4.5</td><td class="tg"><span class="g adv">Adv</span></td><td class="tan"><span class="g adv">Adv</span></td></tr>
-          <tr><td class="tc cr-name">Activity Participation</td><td class="ta">4.8</td><td class="tg"><span class="g adv">Adv</span></td><td class="ta">5.0</td><td class="tg"><span class="g adv">Adv</span></td><td class="tan"><span class="g adv">Adv</span></td></tr>
+          <tr class="subj-head"><td class="subj-col" colspan="3">English I</td><td></td><td></td><td><span class="ach prof">Prof</span></td></tr>
+          <tr><td class="subj-col">Listening</td><td class="score">4.0</td><td><span class="ach prof">Prof</span></td><td class="score">4.2</td><td><span class="ach prof">Prof</span></td><td><span class="ach prof">Prof</span></td></tr>
+          <tr><td class="subj-col">Speaking</td><td class="score">3.8</td><td><span class="ach prof">Prof</span></td><td class="score">4.0</td><td><span class="ach prof">Prof</span></td><td><span class="ach prof">Prof</span></td></tr>
+          <tr><td class="subj-col">Reading</td><td class="score">4.2</td><td><span class="ach prof">Prof</span></td><td class="score">4.4</td><td><span class="ach prof">Prof</span></td><td><span class="ach prof">Prof</span></td></tr>
+          <tr><td class="subj-col">Writing</td><td class="score">3.5</td><td><span class="ach prof">Prof</span></td><td class="score">3.8</td><td><span class="ach prof">Prof</span></td><td><span class="ach prof">Prof</span></td></tr>
+          <tr><td class="subj-col">Fluency</td><td class="score">3.6</td><td><span class="ach prof">Prof</span></td><td class="score">3.9</td><td><span class="ach prof">Prof</span></td><td><span class="ach prof">Prof</span></td></tr>
+          <tr><td class="subj-col">Behaviour</td><td class="score">4.4</td><td><span class="ach prof">Prof</span></td><td class="score">4.8</td><td><span class="ach adv">Adv</span></td><td><span class="ach prof">Prof</span></td></tr>
 
-          <!-- ENGLISH I -->
-          <tr class="sr">
-            <td class="tc">English I</td>
-            <td class="ta"></td><td class="tg"><span class="g prof">Prof</span></td>
-            <td class="ta"></td><td class="tg"><span class="g prof">Prof</span></td>
-            <td class="tan"><span class="g prof">Prof</span></td>
-          </tr>
-          <tr><td class="tc cr-name">Listening</td><td class="ta">4.0</td><td class="tg"><span class="g prof">Prof</span></td><td class="ta">4.2</td><td class="tg"><span class="g prof">Prof</span></td><td class="tan"><span class="g prof">Prof</span></td></tr>
-          <tr><td class="tc cr-name">Speaking</td><td class="ta">3.8</td><td class="tg"><span class="g prof">Prof</span></td><td class="ta">4.0</td><td class="tg"><span class="g prof">Prof</span></td><td class="tan"><span class="g prof">Prof</span></td></tr>
-          <tr><td class="tc cr-name">Reading</td><td class="ta">4.2</td><td class="tg"><span class="g prof">Prof</span></td><td class="ta">4.4</td><td class="tg"><span class="g prof">Prof</span></td><td class="tan"><span class="g prof">Prof</span></td></tr>
-          <tr><td class="tc cr-name">Writing</td><td class="ta">3.5</td><td class="tg"><span class="g prof">Prof</span></td><td class="ta">3.8</td><td class="tg"><span class="g prof">Prof</span></td><td class="tan"><span class="g prof">Prof</span></td></tr>
-          <tr><td class="tc cr-name">Fluency</td><td class="ta">3.6</td><td class="tg"><span class="g prof">Prof</span></td><td class="ta">3.9</td><td class="tg"><span class="g prof">Prof</span></td><td class="tan"><span class="g prof">Prof</span></td></tr>
-          <tr><td class="tc cr-name">Behaviour</td><td class="ta">4.4</td><td class="tg"><span class="g prof">Prof</span></td><td class="ta">4.6</td><td class="tg"><span class="g adv">Adv</span></td><td class="tan"><span class="g prof">Prof</span></td></tr>
+          <tr class="subj-head"><td class="subj-col" colspan="3">English II</td><td></td><td></td><td><span class="ach prof">Prof</span></td></tr>
+          <tr><td class="subj-col">Grammar</td><td class="score">3.8</td><td><span class="ach prof">Prof</span></td><td class="score">4.0</td><td><span class="ach prof">Prof</span></td><td><span class="ach prof">Prof</span></td></tr>
+          <tr><td class="subj-col">Comprehension</td><td class="score">4.0</td><td><span class="ach prof">Prof</span></td><td class="score">4.2</td><td><span class="ach prof">Prof</span></td><td><span class="ach prof">Prof</span></td></tr>
+          <tr><td class="subj-col">Creative Writing</td><td class="score">3.6</td><td><span class="ach prof">Prof</span></td><td class="score">3.8</td><td><span class="ach prof">Prof</span></td><td><span class="ach prof">Prof</span></td></tr>
+          <tr><td class="subj-col">Vocabulary</td><td class="score">3.9</td><td><span class="ach prof">Prof</span></td><td class="score">4.1</td><td><span class="ach prof">Prof</span></td><td><span class="ach prof">Prof</span></td></tr>
 
-          <!-- ENGLISH II -->
-          <tr class="sr">
-            <td class="tc">English II</td>
-            <td class="ta"></td><td class="tg"><span class="g prof">Prof</span></td>
-            <td class="ta"></td><td class="tg"><span class="g prof">Prof</span></td>
-            <td class="tan"><span class="g prof">Prof</span></td>
-          </tr>
-          <tr><td class="tc cr-name">Grammar</td><td class="ta">3.8</td><td class="tg"><span class="g prof">Prof</span></td><td class="ta">4.0</td><td class="tg"><span class="g prof">Prof</span></td><td class="tan"><span class="g prof">Prof</span></td></tr>
-          <tr><td class="tc cr-name">Comprehension</td><td class="ta">4.0</td><td class="tg"><span class="g prof">Prof</span></td><td class="ta">4.2</td><td class="tg"><span class="g prof">Prof</span></td><td class="tan"><span class="g prof">Prof</span></td></tr>
-          <tr><td class="tc cr-name">Creative Writing</td><td class="ta">3.6</td><td class="tg"><span class="g prof">Prof</span></td><td class="ta">3.8</td><td class="tg"><span class="g prof">Prof</span></td><td class="tan"><span class="g prof">Prof</span></td></tr>
-          <tr><td class="tc cr-name">Vocabulary</td><td class="ta">3.9</td><td class="tg"><span class="g prof">Prof</span></td><td class="ta">4.1</td><td class="tg"><span class="g prof">Prof</span></td><td class="tan"><span class="g prof">Prof</span></td></tr>
+          <tr class="subj-head"><td class="subj-col" colspan="3">Science</td><td></td><td></td><td><span class="ach prof">Prof</span></td></tr>
+          <tr><td class="subj-col">Observation</td><td class="score">4.0</td><td><span class="ach prof">Prof</span></td><td class="score">4.5</td><td><span class="ach adv">Adv</span></td><td><span class="ach prof">Prof</span></td></tr>
+          <tr><td class="subj-col">Participation</td><td class="score">4.2</td><td><span class="ach prof">Prof</span></td><td class="score">4.6</td><td><span class="ach adv">Adv</span></td><td><span class="ach adv">Adv</span></td></tr>
+          <tr><td class="subj-col">Understanding</td><td class="score">3.8</td><td><span class="ach prof">Prof</span></td><td class="score">4.3</td><td><span class="ach prof">Prof</span></td><td><span class="ach prof">Prof</span></td></tr>
+          <tr><td class="subj-col">Activity Work</td><td class="score">4.1</td><td><span class="ach prof">Prof</span></td><td class="score">4.7</td><td><span class="ach adv">Adv</span></td><td><span class="ach prof">Prof</span></td></tr>
 
-          <!-- SCIENCE -->
-          <tr class="sr">
-            <td class="tc">Science</td>
-            <td class="ta"></td><td class="tg"><span class="g prof">Prof</span></td>
-            <td class="ta"></td><td class="tg"><span class="g adv">Adv</span></td>
-            <td class="tan"><span class="g prof">Prof</span></td>
-          </tr>
-          <tr><td class="tc cr-name">Observation</td><td class="ta">4.0</td><td class="tg"><span class="g prof">Prof</span></td><td class="ta">4.5</td><td class="tg"><span class="g adv">Adv</span></td><td class="tan"><span class="g prof">Prof</span></td></tr>
-          <tr><td class="tc cr-name">Participation</td><td class="ta">4.2</td><td class="tg"><span class="g prof">Prof</span></td><td class="ta">4.6</td><td class="tg"><span class="g adv">Adv</span></td><td class="tan"><span class="g adv">Adv</span></td></tr>
-          <tr><td class="tc cr-name">Understanding</td><td class="ta">3.8</td><td class="tg"><span class="g prof">Prof</span></td><td class="ta">4.3</td><td class="tg"><span class="g prof">Prof</span></td><td class="tan"><span class="g prof">Prof</span></td></tr>
-          <tr><td class="tc cr-name">Activity Work</td><td class="ta">4.1</td><td class="tg"><span class="g prof">Prof</span></td><td class="ta">4.7</td><td class="tg"><span class="g adv">Adv</span></td><td class="tan"><span class="g prof">Prof</span></td></tr>
+          <tr class="subj-head"><td class="subj-col" colspan="3">Khasi</td><td></td><td></td><td><span class="ach dev">Dev</span></td></tr>
+          <tr><td class="subj-col">Listening</td><td class="score">3.2</td><td><span class="ach dev">Dev</span></td><td class="score">3.8</td><td><span class="ach prof">Prof</span></td><td><span class="ach dev">Dev</span></td></tr>
+          <tr><td class="subj-col">Speaking</td><td class="score">2.8</td><td><span class="ach dev">Dev</span></td><td class="score">3.5</td><td><span class="ach prof">Prof</span></td><td><span class="ach dev">Dev</span></td></tr>
+          <tr><td class="subj-col">Reading</td><td class="score">2.6</td><td><span class="ach dev">Dev</span></td><td class="score">3.6</td><td><span class="ach prof">Prof</span></td><td><span class="ach dev">Dev</span></td></tr>
+          <tr><td class="subj-col">Writing</td><td class="score">2.5</td><td><span class="ach dev">Dev</span></td><td class="score">3.5</td><td><span class="ach prof">Prof</span></td><td><span class="ach dev">Dev</span></td></tr>
 
-          <!-- KHASI -->
-          <tr class="sr">
-            <td class="tc">Khasi</td>
-            <td class="ta"></td><td class="tg"><span class="g dev">Dev</span></td>
-            <td class="ta"></td><td class="tg"><span class="g prof">Prof</span></td>
-            <td class="tan"><span class="g dev">Dev</span></td>
-          </tr>
-          <tr><td class="tc cr-name">Listening</td><td class="ta">3.2</td><td class="tg"><span class="g dev">Dev</span></td><td class="ta">3.8</td><td class="tg"><span class="g prof">Prof</span></td><td class="tan"><span class="g dev">Dev</span></td></tr>
-          <tr><td class="tc cr-name">Speaking</td><td class="ta">2.8</td><td class="tg"><span class="g dev">Dev</span></td><td class="ta">3.5</td><td class="tg"><span class="g prof">Prof</span></td><td class="tan"><span class="g dev">Dev</span></td></tr>
-          <tr><td class="tc cr-name">Reading</td><td class="ta">2.6</td><td class="tg"><span class="g dev">Dev</span></td><td class="ta">3.6</td><td class="tg"><span class="g prof">Prof</span></td><td class="tan"><span class="g dev">Dev</span></td></tr>
-          <tr><td class="tc cr-name">Writing</td><td class="ta">2.5</td><td class="tg"><span class="g dev">Dev</span></td><td class="ta">3.5</td><td class="tg"><span class="g prof">Prof</span></td><td class="tan"><span class="g dev">Dev</span></td></tr>
-
-          <!-- HINDI -->
-          <tr class="sr">
-            <td class="tc">Hindi</td>
-            <td class="ta"></td><td class="tg"><span class="g dev">Dev</span></td>
-            <td class="ta"></td><td class="tg"><span class="g dev">Dev</span></td>
-            <td class="tan"><span class="g dev">Dev</span></td>
-          </tr>
-          <tr><td class="tc cr-name">Listening</td><td class="ta">3.0</td><td class="tg"><span class="g dev">Dev</span></td><td class="ta">3.2</td><td class="tg"><span class="g dev">Dev</span></td><td class="tan"><span class="g dev">Dev</span></td></tr>
-          <tr><td class="tc cr-name">Speaking</td><td class="ta">2.8</td><td class="tg"><span class="g dev">Dev</span></td><td class="ta">3.0</td><td class="tg"><span class="g dev">Dev</span></td><td class="tan"><span class="g dev">Dev</span></td></tr>
-          <tr><td class="tc cr-name">Reading</td><td class="ta">3.1</td><td class="tg"><span class="g dev">Dev</span></td><td class="ta">3.3</td><td class="tg"><span class="g dev">Dev</span></td><td class="tan"><span class="g dev">Dev</span></td></tr>
-          <tr><td class="tc cr-name">Writing</td><td class="ta">2.7</td><td class="tg"><span class="g dev">Dev</span></td><td class="ta">2.9</td><td class="tg"><span class="g dev">Dev</span></td><td class="tan"><span class="g dev">Dev</span></td></tr>
-
+          <tr class="subj-head"><td class="subj-col" colspan="3">Hindi</td><td></td><td></td><td><span class="ach dev">Dev</span></td></tr>
+          <tr><td class="subj-col">Listening</td><td class="score">3.0</td><td><span class="ach dev">Dev</span></td><td class="score">3.2</td><td><span class="ach dev">Dev</span></td><td><span class="ach dev">Dev</span></td></tr>
+          <tr><td class="subj-col">Speaking</td><td class="score">2.8</td><td><span class="ach dev">Dev</span></td><td class="score">3.0</td><td><span class="ach dev">Dev</span></td><td><span class="ach dev">Dev</span></td></tr>
+          <tr><td class="subj-col">Reading</td><td class="score">3.1</td><td><span class="ach dev">Dev</span></td><td class="score">3.3</td><td><span class="ach dev">Dev</span></td><td><span class="ach dev">Dev</span></td></tr>
+          <tr><td class="subj-col">Writing</td><td class="score">2.7</td><td><span class="ach dev">Dev</span></td><td class="score">2.9</td><td><span class="ach dev">Dev</span></td><td><span class="ach dev">Dev</span></td></tr>
         </tbody>
       </table>
-    </div><!-- /.tbl-wrap -->
+    </section>
 
-    <!-- Right: 3 remark boxes stacked -->
-    <div class="remarks-panel">
+    <!-- RIGHT SUMMARY -->
+    <aside class="summary">
 
-      <!-- HY1 box -->
-      <div class="rbox rbox-hy1">
-        <div class="rbox-head">First Half-Yearly — Apr – Sep 2025</div>
-        <div class="rbox-stats">
-          <div class="rs"><span class="rl">Overall Grade</span><span class="rv"><span class="g prof">Prof</span> Proficient</span></div>
-          <div class="rs"><span class="rl">Avg Score</span><span class="rv">3.84 / 5</span></div>
-          <div class="rs"><span class="rl">Strongest Subject</span><span class="rv" style="color:#0a6e3a">Mathematics</span></div>
-          <div class="rs"><span class="rl">Needs Attention</span><span class="rv" style="color:#b87600">Khasi</span></div>
+      <section class="panel">
+        <div class="panel-bar">First Half-Yearly · Apr – Sep 2025</div>
+        <div class="panel-body">
+          <div class="stat-row">
+            <div class="stat">
+              <div class="eyebrow">Overall Level</div>
+              <div class="value"><span class="ach prof">Prof</span> Proficient</div>
+            </div>
+            <div class="stat">
+              <div class="eyebrow">Average Score</div>
+              <div class="value">3.94 <span style="font-size:9px;color:var(--txt-dim);font-weight:600">/ 5.0</span></div>
+            </div>
+            <div class="stat">
+              <div class="eyebrow">Strongest Subject</div>
+              <div class="value" style="font-size:11px">Mathematics</div>
+            </div>
+            <div class="stat">
+              <div class="eyebrow">Needs Attention</div>
+              <div class="value" style="font-size:11px;color:var(--ny-c)">Khasi</div>
+            </div>
+          </div>
+          <div class="remark">Alvinson has had a very good term, showing solid understanding and consistent effort. Mathematics is clearly a strong area. Continued focus on Khasi will help unlock even greater potential — keep working with this same dedication.</div>
         </div>
-        <div class="rbox-remark">
-          Alvinson has had a very good term, showing solid understanding and consistent effort. Mathematics is clearly a strong area. Continued focus on Khasi will help unlock even greater potential. Keep working with this same dedication.
-        </div>
-      </div>
+      </section>
 
-      <!-- HY2 box -->
-      <div class="rbox rbox-hy2">
-        <div class="rbox-head">Second Half-Yearly — Oct 2025 – Mar 2026</div>
-        <div class="rbox-stats">
-          <div class="rs"><span class="rl">Overall Grade</span><span class="rv"><span class="g prof">Prof</span> Proficient</span></div>
-          <div class="rs"><span class="rl">Avg Score</span><span class="rv">4.08 / 5</span></div>
-          <div class="rs"><span class="rl">Strongest Subject</span><span class="rv" style="color:#0a6e3a">Mathematics</span></div>
-          <div class="rs"><span class="rl">Most Improved</span><span class="rv" style="color:#1a5fb4">Science ↑</span></div>
+      <section class="panel">
+        <div class="panel-bar">Second Half-Yearly · Oct 2025 – Mar 2026</div>
+        <div class="panel-body">
+          <div class="stat-row">
+            <div class="stat">
+              <div class="eyebrow">Overall Level</div>
+              <div class="value"><span class="ach prof">Prof</span> Proficient</div>
+            </div>
+            <div class="stat">
+              <div class="eyebrow">Average Score</div>
+              <div class="value">4.08 <span style="font-size:9px;color:var(--txt-dim);font-weight:600">/ 5.0</span></div>
+            </div>
+            <div class="stat">
+              <div class="eyebrow">Strongest Subject</div>
+              <div class="value" style="font-size:11px">Mathematics</div>
+            </div>
+            <div class="stat">
+              <div class="eyebrow">Most Improved</div>
+              <div class="value" style="font-size:11px">Science <span class="arrow">↑</span></div>
+            </div>
+          </div>
+          <div class="remark">Alvinson has shown impressive improvement this term, especially in Science. Mathematics continues to shine brightly. Keep working with the same dedication and determination — great things are ahead.</div>
         </div>
-        <div class="rbox-remark">
-          Alvinson has shown impressive improvement this term, especially in Science. Mathematics continues to shine brightly. Keep working with the same dedication and determination — great things are ahead.
+      </section>
+
+      <section class="panel">
+        <div class="panel-bar annual">Annual Standing · 2025 – 2026</div>
+        <div class="panel-body">
+          <div class="stat-row">
+            <div class="stat">
+              <div class="eyebrow">Annual Level</div>
+              <div class="value"><span class="ach prof">Prof</span> Proficient</div>
+            </div>
+            <div class="stat">
+              <div class="eyebrow">Year Average</div>
+              <div class="value">3.96 <span style="font-size:9px;color:var(--txt-dim);font-weight:600">/ 5.0</span></div>
+            </div>
+            <div class="stat">
+              <div class="eyebrow">Year Trend</div>
+              <div class="value" style="font-size:11px"><span class="arrow">↑</span> Improving</div>
+            </div>
+            <div class="stat">
+              <div class="eyebrow">Promoted To</div>
+              <div class="value" style="font-size:11px;color:var(--pass)">Class II ✓</div>
+            </div>
+          </div>
+          <div class="remark">Alvinson has had a wonderful year of growth and learning. Mathematics has been an outstanding strength throughout both terms; Science showed impressive growth from HY1 to HY2. Congratulations on promotion to Class II — well deserved.</div>
         </div>
-      </div>
+      </section>
 
-      <!-- Annual box -->
-      <div class="rbox rbox-ann">
-        <div class="rbox-head">Annual Standing — 2025–2026</div>
-        <div class="rbox-stats">
-          <div class="rs"><span class="rl">Annual Grade</span><span class="rv"><span class="g prof">Prof</span> Proficient</span></div>
-          <div class="rs"><span class="rl">Year Average</span><span class="rv">3.96 / 5</span></div>
-          <div class="rs"><span class="rl">Year Trend</span><span class="rv" style="color:#0a6e3a">↑ Improving</span></div>
-          <div class="rs"><span class="rl">Promoted To</span><span class="rv" style="color:#0a6e3a;font-weight:800">Class II ✓</span></div>
-        </div>
-        <div class="rbox-remark">
-          Alvinson has had a wonderful year of growth and learning. Mathematics has been an outstanding strength throughout both terms. Science showed impressive growth from HY1 to HY2. Congratulations on promotion to Class II — well deserved!
-        </div>
-      </div>
-
-    </div><!-- /.remarks-panel -->
-
-  </div><!-- /.body-row -->
-
-  <!-- Footer -->
-  <div class="footer">
-    <div class="legend">
-      <strong>Grade Scale:</strong>
-      <span><span class="g adv">Adv</span> Advanced 4.5–5.0</span>
-      <span><span class="g prof">Prof</span> Proficient 3.5–4.4</span>
-      <span><span class="g dev">Dev</span> Developing 2.5–3.4</span>
-      <span><span class="g beg">Beg</span> Beginning 1.5–2.4</span>
-      <span><span class="g ny">NY</span> Not Yet 0–1.4</span>
-    </div>
-    <div class="sigs">
-      <div class="sig"><div class="sig-line">Class Teacher</div></div>
-      <div class="sig"><div class="sig-line">Parent / Guardian</div></div>
-      <div class="sig"><div class="sig-line">Principal</div></div>
-    </div>
+    </aside>
   </div>
 
-</div><!-- /.card -->
+  <!-- FOOTER -->
+  <footer class="footer">
+    <div class="scale-row">
+      <div class="scale-label">Achievement Scale</div>
+      <div class="scale-items">
+        <div class="scale-item"><span class="ach adv">Adv</span><span class="name">Advanced</span><span class="range">4.5 – 5.0</span></div>
+        <div class="scale-item"><span class="ach prof">Prof</span><span class="name">Proficient</span><span class="range">3.5 – 4.4</span></div>
+        <div class="scale-item"><span class="ach dev">Dev</span><span class="name">Developing</span><span class="range">2.5 – 3.4</span></div>
+        <div class="scale-item"><span class="ach beg">Beg</span><span class="name">Beginning</span><span class="range">1.5 – 2.4</span></div>
+        <div class="scale-item"><span class="ach ny">NY</span><span class="name">Not Yet</span><span class="range">0 – 1.4</span></div>
+      </div>
+    </div>
+    <div class="sign-row">
+      <div class="sign"><div class="sign-line"></div><div class="sign-label">Class Teacher</div></div>
+      <div class="sign"><div class="sign-line"></div><div class="sign-label">Parent / Guardian</div></div>
+      <div class="sign"><div class="sign-line"></div><div class="sign-label">Principal</div></div>
+    </div>
+    <div class="disclaimer">Computer-generated document &nbsp;|&nbsp; Verify with school records &nbsp;|&nbsp; No signature required for validity</div>
+  </footer>
+
+</main>
+</div>
 
 <script>
   function eraseCard() {
-    if (!confirm('Erase this demo report card?')) return;
+    if (!confirm('Erase this demo card from view?')) return;
     document.getElementById('cardWrap').style.display = 'none';
-    document.getElementById('ctrlBar').style.display  = 'none';
     document.getElementById('erasedMsg').style.display = 'block';
   }
   function restoreCard() {
     document.getElementById('cardWrap').style.display = 'flex';
-    document.getElementById('ctrlBar').style.display  = 'flex';
     document.getElementById('erasedMsg').style.display = 'none';
   }
 </script>
