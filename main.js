@@ -25,6 +25,7 @@ import {
 import { aggregateByMonth, extractYearMonth, clearAggregationCache } from './services/aggregation-engine.js';
 import { getCurrentUser, isTeacher, isAdmin, isLoggedIn, resolveAuthSession } from './services/auth-service.js';
 import { generateDemoData, clearDemoData, generateWeeklyMathDemo } from './services/demo-data-generator.js';
+import { createReportCardGeneratorUI } from './components/report-card-generator-ui.js';
 
 const classes = ['LKG', 'SKG', 'Class I', 'Class II'];
 
@@ -447,7 +448,8 @@ function renderAdmin() {
     { key: 'sessions', label: 'Sessions' },
     { key: 'summary', label: 'Monthly Summary' },
     { key: 'weak', label: 'Weak Students' },
-    { key: 'analytics', label: 'Analytics' }
+    { key: 'analytics', label: 'Analytics' },
+    { key: 'reportcards', label: 'Report Cards' }
   ];
 
   tabDefs.forEach(t => {
@@ -477,7 +479,16 @@ function renderAdmin() {
     renderAdminWeak();
   } else if (state.adminView === 'analytics') {
     renderAdminAnalytics();
+  } else if (state.adminView === 'reportcards') {
+    renderAdminReportCards();
   }
+}
+
+function renderAdminReportCards() {
+  assessmentRoot.append(createReportCardGeneratorUI({
+    classes,
+    currentUser: getCurrentUser()
+  }));
 }
 
 function renderAdminAnalytics() {
