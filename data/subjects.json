@@ -32,7 +32,7 @@
   {
     "subject_id": "HIN",
     "subject_name": "Hindi",
-    "classes": ["LKG", "SKG", "Class I", "Class II"],
+    "classes": ["LKG", "SKG", "Class II"],
     "criteria_path": "data/criteria/hindi.json"
   }
 ]
